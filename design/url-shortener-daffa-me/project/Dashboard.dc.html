@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;700&amp;family=Atkinson+Hyperlegible+Next:wght@400;500;700;800&amp;display=swap">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+:root{--badge-in:inset 2px 2px 4px rgba(0,0,0,0.45),inset -1px -1px 3px rgba(255,255,255,0.18),0 1px 0 rgba(255,255,255,0.8);--tile-in:10px 12px 22px rgba(20,23,28,0.45),3px 4px 6px rgba(20,23,28,0.35),-8px -8px 16px #FFFFFF,inset 1px 1px 0 rgba(255,255,255,0.22),inset -2px -2px 1px rgba(0,0,0,0.6);--lift:inset 0 1px 0 rgba(255,255,255,0.7),0 1px 2px rgba(20,23,28,0.18),0 12px 28px -6px rgba(20,23,28,0.35);--bg:#E4E8EE;--bg-hover:#ECEFF3;--sh-l:#FFFFFF;--sh-d:#B8C0CC;--line:#7A8494;--hair:#C3CAD4;--ink:#14171C;--ink2:#4A5260;--sign:#F5C400;--link:#1F5FBF;--ok:#1E7F4F;--off:#5B6472;--exp:#B4501A;--danger:#C62828;--bot:#6B4FBB;--bot-tint:#E9E4F5;--track:#CFD5DE;--raise-lg:6px 6px 12px #B8C0CC,-6px -6px 12px #FFFFFF;--raise-sm:3px 3px 6px #B8C0CC,-3px -3px 6px #FFFFFF;--inset:inset 3px 3px 6px #B8C0CC,inset -3px -3px 6px #FFFFFF;--font:'Atkinson Hyperlegible Next',system-ui,sans-serif;--mono:'Atkinson Hyperlegible Mono','IBM Plex Mono',ui-monospace,monospace}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--link)}a:hover{color:#174A96}
+:focus-visible{outline:3px solid #1F5FBF;outline-offset:3px}
+button,input,select,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height:100vh;background:var(--bg)">
+<header style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding:16px clamp(16px,3vw,40px);border-bottom:1px solid var(--hair)">
+  <button onClick="{{ goList }}" style="display:flex;align-items:center;gap:12px;background:none;border:0;padding:0;cursor:pointer;color:var(--ink)">
+    <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:linear-gradient(145deg,#2A3039,#0C0E12);box-shadow:var(--tile-in);color:var(--sign);font:700 18px/1 var(--mono)"><span style="color:#8E97A6">/</span><span>D</span></span>
+    <span style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
+      <span style="font:700 18px/1 var(--mono);letter-spacing:.01em">daffa.me</span>
+      <span style="font:700 11px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">LINK MANAGER</span>
+    </span>
+  </button>
+  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <span style="font:500 14px/1.3 var(--font);color:var(--ink2)">daffarestupratama@gmail.com</span>
+    <button style="display:inline-flex;align-items:center;height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 14px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)">Sign out</button>
+  </div>
+</header>
+
+<main style="max-width:1320px;margin:0 auto;padding:28px clamp(16px,3vw,40px) 80px;display:flex;flex-direction:column;gap:28px">
+
+<sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <span style="display:flex;align-items:center;gap:8px;font:700 12px/1 var(--font);letter-spacing:.18em;color:var(--ink2)"><span style="width:10px;height:10px;background:var(--sign);border:1px solid var(--ink)"></span>LINKS</span>
+      <h1 style="margin:0;font:800 clamp(26px,3vw,34px)/1.1 var(--font);letter-spacing:-.01em">Links</h1>
+      <p style="margin:0;font:400 15px/1.5 var(--font);color:var(--ink2);text-wrap:pretty">All short links on daffa.me with a summary of clicks over the last 7 days.</p>
+    </div>
+    <button onClick="{{ openCreate }}" style="display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 22px;border-radius:12px;border:1px solid var(--ink);background:var(--sign);color:var(--ink);font:800 16px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:#FFD21F" style-active="box-shadow:inset 3px 3px 6px #B89400,inset -3px -3px 6px #FFE36B">
+      <span style="font:700 22px/1 var(--mono);margin-top:-2px">+</span>Create Link
+    </button>
+  </div>
+
+  <sc-if value="{{ showKpi }}" hint-placeholder-val="{{ true }}">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)">ACTIVE LINKS</span>
+      <span style="font:800 40px/1 var(--font);font-variant-numeric:tabular-nums">{{ kpi.active }}</span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">of {{ kpi.total }} saved links</span>
+    </div>
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)">HUMAN CLICKS · 7 DAYS</span>
+      <span style="font:800 40px/1 var(--font);font-variant-numeric:tabular-nums">{{ kpi.human }}</span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">21 to 27 Sep 2026</span>
+    </div>
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)">UNIQUE VISITORS · 7 DAYS</span>
+      <span style="font:800 40px/1 var(--font);font-variant-numeric:tabular-nums;color:var(--link)">{{ kpi.unique }}</span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">based on IP address and device</span>
+    </div>
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)">MOST CLICKED · 7 DAYS</span>
+      <span style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 22px/1 var(--mono);padding:9px 12px;border-radius:8px"><span style="color:#8E97A6">/</span>{{ kpi.topSlug }}</span>
+        <span style="font:800 28px/1 var(--font);font-variant-numeric:tabular-nums">{{ kpi.topClicks }}</span>
+      </span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">{{ kpi.topTitle }}</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ showToolbar }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+    <label style="position:relative;flex:1 1 320px;min-width:0;display:block">
+      <span style="position:absolute;left:1px;top:1px;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search links</span>
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#4A5260" stroke-width="2" style="position:absolute;left:16px;top:15px;pointer-events:none"><circle cx="7.5" cy="7.5" r="5.5"></circle><path d="M12 12l4.5 4.5"></path></svg>
+      <input type="search" value="{{ q }}" onChange="{{ onQ }}" placeholder="Search slug, title, or destination URL" style="width:100%;height:48px;padding:0 16px 0 44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--inset);font:400 16px var(--font);color:var(--ink)">
+    </label>
+    <div data-dd="tag" style="position:relative">
+      <button aria-haspopup="listbox" aria-expanded="{{ ddTag }}" onClick="{{ toggleTag }}" style="display:flex;align-items:center;white-space:nowrap;height:48px;padding:0 40px 0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:{{ ddTagSh }};font:700 15px var(--font);color:var(--ink);cursor:pointer">{{ tagLabel }}</button>
+      <span style="position:absolute;right:16px;top:15px;pointer-events:none;font:700 13px var(--font)">▾</span>
+      <sc-if value="{{ ddTag }}">
+        <div role="listbox" style="position:absolute;left:0;top:56px;z-index:40;min-width:100%;width:max-content;max-height:320px;overflow:auto;background:var(--bg);border-radius:14px;border:1px solid var(--line);box-shadow:var(--raise-lg);padding:6px;display:flex;flex-direction:column;gap:4px">
+          <sc-for list="{{ tagOpts }}" as="o"><button role="option" aria-selected="{{ o.sel }}" onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--bg);box-shadow:{{ o.shadow }};text-align:left;font-family:var(--font);font-size:15px;font-weight:{{ o.fw }};color:var(--ink);cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)"><span>{{ o.label }}</span><span aria-hidden="true" style="font-weight:800;color:var(--link)">{{ o.check }}</span></button></sc-for>
+        </div>
+      </sc-if>
+    </div>
+    <div role="radiogroup" aria-label="Filter by status" style="display:flex;gap:4px;padding:4px;border-radius:14px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);flex-wrap:wrap">
+      <sc-for list="{{ statusOpts }}" as="o" hint-placeholder-count="4">
+        <button role="radio" aria-checked="{{ o.on }}" onClick="{{ o.onClick }}" style="height:38px;padding:0 14px;border-radius:10px;border:0;background:var(--bg);color:{{ o.color }};font-weight:{{ o.fw }};font-size:14px;box-shadow:{{ o.shadow }};cursor:pointer">{{ o.label }}</button>
+      </sc-for>
+    </div>
+    <div data-dd="sort" style="position:relative">
+      <button aria-haspopup="listbox" aria-expanded="{{ ddSort }}" onClick="{{ toggleSort }}" style="display:flex;align-items:center;white-space:nowrap;height:48px;padding:0 40px 0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:{{ ddSortSh }};font:700 15px var(--font);color:var(--ink);cursor:pointer">{{ sortLabel }}</button>
+      <span style="position:absolute;right:16px;top:15px;pointer-events:none;font:700 13px var(--font)">▾</span>
+      <sc-if value="{{ ddSort }}">
+        <div role="listbox" style="position:absolute;right:0;top:56px;z-index:40;min-width:100%;width:max-content;max-height:320px;overflow:auto;background:var(--bg);border-radius:14px;border:1px solid var(--line);box-shadow:var(--raise-lg);padding:6px;display:flex;flex-direction:column;gap:4px">
+          <sc-for list="{{ sortOpts }}" as="o"><button role="option" aria-selected="{{ o.sel }}" onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--bg);box-shadow:{{ o.shadow }};text-align:left;font-family:var(--font);font-size:15px;font-weight:{{ o.fw }};color:var(--ink);cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)"><span>{{ o.label }}</span><span aria-hidden="true" style="font-weight:800;color:var(--link)">{{ o.check }}</span></button></sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isLoading }}">
+    <div aria-busy="true" style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);overflow:hidden">
+      <div style="padding:14px 22px;border-bottom:1px solid var(--hair);font:700 12px var(--font);letter-spacing:.16em;color:var(--ink2)">LOADING LINKS</div>
+      <sc-for list="{{ skel }}" as="s">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px;padding:22px;border-bottom:1px solid var(--hair)">
+          <span style="width:120px;height:36px;border-radius:8px;background:#CCD3DC"></span>
+          <span style="flex:1 1 280px;display:flex;flex-direction:column;gap:10px"><span style="width:45%;height:14px;border-radius:4px;background:#CCD3DC"></span><span style="width:75%;height:12px;border-radius:4px;background:#D6DCE4"></span></span>
+          <span style="width:70px;height:24px;border-radius:4px;background:#CCD3DC"></span>
+          <span style="width:90px;height:24px;border-radius:4px;background:#D6DCE4"></span>
+          <span style="width:170px;height:40px;border-radius:12px;background:#D6DCE4"></span>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isError }}">
+    <div role="alert" style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:40px clamp(20px,4vw,48px);display:flex;flex-direction:column;align-items:flex-start;gap:14px">
+      <span style="background:var(--danger);color:#fff;font:800 12px/1 var(--font);letter-spacing:.14em;padding:6px 10px;border-radius:4px;box-shadow:var(--badge-in)">ERROR · 503</span>
+      <h2 style="margin:0;font:800 24px/1.2 var(--font)">Links failed to load</h2>
+      <p style="margin:0;max-width:560px;font:400 16px/1.55 var(--font);color:var(--ink);text-wrap:pretty">The server did not respond within 10 seconds. Short links keep working for visitors. Check your internet connection, then reload the page.</p>
+      <button onClick="{{ retry }}" style="display:inline-flex;align-items:center;height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)">Reload</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isEmpty }}">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:56px clamp(20px,4vw,48px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px">
+      <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 28px/1 var(--mono);padding:12px 18px;border-radius:10px;letter-spacing:.04em"><span style="color:#8E97A6">/</span>_ _ _</span>
+      <h2 style="margin:0;font:800 24px/1.2 var(--font)">No links yet</h2>
+      <p style="margin:0;max-width:460px;font:400 16px/1.55 var(--font);color:var(--ink2);text-wrap:pretty">The first link will appear here with its click count, status, and QR code.</p>
+      <button onClick="{{ openCreate }}" style="display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 22px;border-radius:12px;border:1px solid var(--ink);background:var(--sign);color:var(--ink);font:800 16px var(--font);box-shadow:var(--raise-sm);cursor:pointer">Create First Link</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ noResults }}">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:44px clamp(20px,4vw,48px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px">
+      <h2 style="margin:0;font:800 22px/1.2 var(--font)">No matching links</h2>
+      <p style="margin:0;font:400 15px/1.5 var(--font);color:var(--ink2)">Try another keyword or reset the tag and status filters.</p>
+      <button onClick="{{ resetFilters }}" style="display:inline-flex;align-items:center;height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">Reset Filters</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasRows }}" hint-placeholder-val="{{ true }}">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg)">
+      <div style="display:flex;justify-content:space-between;gap:12px;padding:14px 22px;border-bottom:1px solid var(--hair);font:700 12px/1.3 var(--font);letter-spacing:.16em;color:var(--ink2)">
+        <span>{{ rowsCaption }}</span><span>HUMAN CLICKS · 7 DAYS</span>
+      </div>
+      <sc-for list="{{ rows }}" as="row" hint-placeholder-count="6">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;padding:18px 22px;border-bottom:{{ row.sep }}">
+          <div style="display:flex;align-items:center;gap:8px;flex:none;min-width:196px">
+            <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 16px/1 var(--mono);padding:10px 12px;border-radius:8px;letter-spacing:.02em;min-width:108px;max-width:220px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis"><span style="color:#8E97A6">/</span>{{ row.slug }}</span>
+            <button onClick="{{ row.onCopy }}" aria-label="{{ row.copyAria }}" title="Copy short link" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:var(--raise-sm);cursor:pointer;padding:0" style-active="box-shadow:var(--inset)">
+              <sc-if value="{{ row.isCopied }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1E7F4F" stroke-width="2.4"><path d="M3 8.5l3 3 7-7"></path></svg></sc-if>
+              <sc-if value="{{ row.notCopied }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"></path></svg></sc-if>
+            </button>
+          </div>
+          <div style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <button onClick="{{ row.onDetail }}" style="align-self:flex-start;max-width:100%;background:none;border:0;padding:0;text-align:left;font:700 16px/1.3 var(--font);color:var(--ink);cursor:pointer" style-hover="text-decoration:underline">{{ row.title }}</button>
+            <div style="display:flex;align-items:center;gap:8px;min-width:0">
+              <a href="{{ row.url }}" target="_blank" rel="noopener" style="min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:400 14px/1.4 var(--mono);color:var(--link)">{{ row.dest }}</a>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ row.tags }}" as="t"><span style="display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;background:var(--track);color:var(--ink);font:500 12px/1 var(--font)">#{{ t }}</span></sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:84px">
+            <span style="font:800 24px/1 var(--font);font-variant-numeric:tabular-nums">{{ row.clicks }}</span>
+            <span style="font:400 12px/1.2 var(--font);color:var(--ink2)">clicks</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:150px">
+            <span style="background:{{ row.statusBg }};color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">{{ row.statusLabel }}</span>
+            <span style="font:400 12px/1.3 var(--font);color:var(--ink2)">{{ row.expiry }}</span>
+          </div>
+          <div style="position:relative;display:flex;gap:8px;margin-left:auto">
+            <button onClick="{{ row.onQR }}" title="Show QR code" aria-label="Show QR code" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:var(--raise-sm);cursor:pointer;padding:0" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"></rect><rect x="10" y="2" width="6" height="6" rx="1"></rect><rect x="2" y="10" width="6" height="6" rx="1"></rect><rect x="11" y="11" width="4" height="4"></rect></svg></button>
+            <button onClick="{{ row.onEdit }}" title="Edit link" aria-label="Edit link" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:var(--raise-sm);cursor:pointer;padding:0" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 15l1-4 8-8 3 3-8 8z"></path></svg></button>
+            <button onClick="{{ row.onDetail }}" title="View analytics" aria-label="View analytics" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:var(--raise-sm);cursor:pointer;padding:0" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="2" y="9" width="3" height="7"></rect><rect x="7.5" y="3" width="3" height="13"></rect><rect x="13" y="6" width="3" height="10"></rect></svg></button>
+            <button onClick="{{ row.onMenu }}" title="More actions" aria-label="More actions" aria-expanded="{{ row.menuOpen }}" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:{{ row.menuShadow }};cursor:pointer;padding:0"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><circle cx="3.5" cy="9" r="1.7"></circle><circle cx="9" cy="9" r="1.7"></circle><circle cx="14.5" cy="9" r="1.7"></circle></svg></button>
+            <sc-if value="{{ row.menuOpen }}">
+              <div role="menu" style="position:absolute;right:0;top:50px;z-index:40;min-width:220px;background:var(--bg);border-radius:14px;border:1px solid var(--line);box-shadow:var(--raise-lg);padding:6px;display:flex;flex-direction:column">
+                <button role="menuitem" onClick="{{ row.onToggle }}" style="height:44px;padding:0 14px;border:0;border-radius:10px;background:transparent;text-align:left;font:700 15px var(--font);color:var(--ink);cursor:pointer" style-hover="background:var(--bg-hover)">{{ row.toggleLabel }}</button>
+                <div style="height:1px;background:var(--hair);margin:4px 8px"></div>
+                <button role="menuitem" onClick="{{ row.onDelete }}" style="height:44px;padding:0 14px;border:0;border-radius:10px;background:transparent;text-align:left;font:700 15px var(--font);color:var(--danger);cursor:pointer" style-hover="background:#F6E3E3">Delete link</button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+</sc-if>
+
+<sc-if value="{{ isDetail }}">
+  <button onClick="{{ goList }}" style="align-self:flex-start;display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 14px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">← All Links</button>
+
+  <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:24px clamp(18px,3vw,32px);display:flex;flex-direction:column;gap:18px">
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px 20px">
+      <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 clamp(28px,4vw,40px)/1 var(--mono);padding:14px 18px;border-radius:12px;letter-spacing:.02em;max-width:100%;overflow-wrap:anywhere"><span style="color:#8E97A6;font-size:.7em">daffa.me/</span>{{ d.slug }}</span>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button onClick="{{ d.onCopy }}" style="display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">{{ d.copyLabel }}</button>
+        <button onClick="{{ d.onQR }}" style="display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">QR Code</button>
+        <button onClick="{{ d.onEdit }}" style="display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">Edit</button>
+      </div>
+      <span style="margin-left:auto;background:{{ d.statusBg }};color:#fff;font:800 13px/1 var(--font);letter-spacing:.14em;padding:8px 12px;border-radius:4px;box-shadow:var(--badge-in)">{{ d.statusLabel }}</span>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:10px;min-width:0">
+      <a href="{{ d.url }}" target="_blank" rel="noopener" style="font:500 17px/1.4 var(--mono);color:var(--link);overflow-wrap:anywhere">{{ d.dest }}</a>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <h1 style="margin:0;font:800 clamp(22px,2.6vw,28px)/1.2 var(--font)">{{ d.title }}</h1>
+      <p style="margin:0;font:400 15px/1.5 var(--font);color:var(--ink2);max-width:720px;text-wrap:pretty">{{ d.desc }}</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 28px;padding-top:14px;border-top:1px solid var(--hair)">
+      <div style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ d.tags }}" as="t"><span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:999px;background:var(--track);font:500 13px/1 var(--font)">#{{ t }}</span></sc-for></div>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)"><span style="font-weight:700;letter-spacing:.12em;font-size:11px">CREATED</span>  {{ d.created }}</span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)"><span style="font-weight:700;letter-spacing:.12em;font-size:11px">EXPIRES</span>  {{ d.expires }}</span>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px">
+    <span style="display:flex;align-items:center;gap:8px;font:700 12px/1 var(--font);letter-spacing:.18em;color:var(--ink2)"><span style="width:10px;height:10px;background:var(--sign);border:1px solid var(--ink)"></span>ANALYTICS</span>
+    <div role="radiogroup" aria-label="Time range" style="display:flex;gap:4px;padding:4px;border-radius:14px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);flex-wrap:wrap">
+      <sc-for list="{{ rangeOpts }}" as="o" hint-placeholder-count="5">
+        <button role="radio" aria-checked="{{ o.on }}" onClick="{{ o.onClick }}" style="height:40px;padding:0 16px;border-radius:10px;border:0;background:var(--bg);color:{{ o.color }};font-weight:{{ o.fw }};font-size:14px;box-shadow:{{ o.shadow }};cursor:pointer">{{ o.label }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="display:flex;align-items:center;gap:8px;font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)"><span style="width:14px;height:3px;background:var(--ink)"></span>HUMAN CLICKS</span>
+      <span style="font:800 40px/1 var(--font);font-variant-numeric:tabular-nums">{{ a.human }}</span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">{{ a.rangeText }}</span>
+    </div>
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="display:flex;align-items:center;gap:8px;font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)"><span style="width:14px;height:3px;background:var(--link)"></span>UNIQUE VISITORS</span>
+      <span style="font:800 40px/1 var(--font);font-variant-numeric:tabular-nums;color:var(--link)">{{ a.unique }}</span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">{{ a.uniqueRatio }}</span>
+    </div>
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="display:flex;align-items:center;gap:8px;font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--bot)"><span style="width:14px;height:3px;background:var(--bot)"></span>BOT CLICKS</span>
+      <span style="font:800 40px/1 var(--font);font-variant-numeric:tabular-nums;color:var(--bot)">{{ a.bot }}</span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">not counted as visitors</span>
+    </div>
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)">LAST CLICK</span>
+      <span style="font:800 28px/1.15 var(--font);font-variant-numeric:tabular-nums">{{ a.lastRel }}</span>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">{{ a.lastAbs }}</span>
+    </div>
+  </div>
+
+  <sc-if value="{{ a.isEmpty }}">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:56px clamp(20px,4vw,48px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px">
+      <span style="font:800 12px/1 var(--font);letter-spacing:.16em;background:var(--off);color:#fff;padding:7px 10px;border-radius:4px;box-shadow:var(--badge-in)">NO ARRIVALS YET</span>
+      <h2 style="margin:0;font:800 24px/1.2 var(--font)">This link has not been clicked yet</h2>
+      <p style="margin:0;max-width:520px;font:400 16px/1.55 var(--font);color:var(--ink2);text-wrap:pretty">Charts, location rankings, network data, and the click log will appear after daffa.me/{{ d.slug }} is opened for the first time.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <button onClick="{{ d.onCopy }}" style="display:inline-flex;align-items:center;height:48px;padding:0 20px;border-radius:12px;border:1px solid var(--ink);background:var(--sign);color:var(--ink);font:800 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer">Copy Link</button>
+        <button onClick="{{ d.onQR }}" style="display:inline-flex;align-items:center;height:48px;padding:0 20px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer">Show QR Code</button>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ a.hasData }}" hint-placeholder-val="{{ true }}">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:22px clamp(16px,2.5vw,28px) 18px;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 24px;align-items:center">
+        <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">CLICKS OVER TIME</span>
+        <div style="display:flex;gap:18px;flex-wrap:wrap;font:500 13px/1 var(--font)">
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:3px;background:var(--ink)"></span>Human clicks</span>
+          <span style="display:flex;align-items:center;gap:8px"><span style="width:18px;height:0;border-top:3px dashed var(--link)"></span>Unique visitors</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 12px">
+        <div style="position:relative;width:34px;height:260px;font:500 12px/1 var(--mono);color:var(--ink2);text-align:right">
+          <span style="position:absolute;right:0;top:0;transform:translateY(-50%)">{{ c.yMax }}</span>
+          <span style="position:absolute;right:0;top:50%;transform:translateY(-50%)">{{ c.yMid }}</span>
+          <span style="position:absolute;right:0;bottom:0;transform:translateY(50%)">0</span>
+        </div>
+        <div style="position:relative;height:260px">
+          <div style="position:absolute;left:0;right:0;top:0;border-top:1px dashed var(--hair)"></div>
+          <div style="position:absolute;left:0;right:0;top:50%;border-top:1px dashed var(--hair)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;border-top:1px solid var(--line)"></div>
+          <svg viewBox="0 0 1000 260" preserveAspectRatio="none" width="100%" height="260" style="position:absolute;inset:0;overflow:visible">
+            <path d="{{ c.area }}" fill="rgba(20,23,28,0.07)"></path>
+            <path d="{{ c.human }}" fill="none" stroke="#14171C" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+            <path d="{{ c.unique }}" fill="none" stroke="#1F5FBF" stroke-width="2.5" stroke-dasharray="6 4" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+          </svg>
+          <sc-for list="{{ c.notes }}" as="n">
+            <div style="position:absolute;left:{{ n.left }};top:{{ n.top }};width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--sign);border:2px solid var(--ink)"></div>
+            <div style="position:absolute;left:{{ n.boxLeft }};top:{{ n.top }};transform:translate({{ n.shift }},calc(-100% - 14px));background:var(--ink);color:#fff;padding:8px 10px;border-radius:8px;font:400 13px/1.35 var(--font);white-space:nowrap;pointer-events:none">
+              <span style="display:block;font:700 12px/1.2 var(--mono);color:var(--sign)">{{ n.head }}</span>{{ n.text }}
+            </div>
+          </sc-for>
+        </div>
+        <div></div>
+        <div style="position:relative;height:28px;font:500 12px/1 var(--mono);color:var(--ink2)">
+          <sc-for list="{{ c.xLabels }}" as="x"><span style="position:absolute;left:{{ x.left }};top:12px;transform:translateX({{ x.shift }});white-space:nowrap">{{ x.label }}</span></sc-for>
+        </div>
+      </div>
+      <sc-if value="{{ c.flat }}"><p style="margin:0;font:500 14px/1.4 var(--font);color:var(--ink2)">No human clicks in this range. Choose a longer range to see history.</p></sc-if>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:20px">
+      <sc-for list="{{ rankings }}" as="rk" hint-placeholder-count="6">
+        <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+          <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">{{ rk.title }}</span>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <sc-for list="{{ rk.items }}" as="it">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:baseline;gap:8px;font:400 15px/1.3 var(--font)">
+                  <span style="font-size:17px">{{ it.flag }}</span>
+                  <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ it.label }}</span>
+                  <span style="font-weight:700;font-variant-numeric:tabular-nums">{{ it.count }}</span>
+                  <span style="width:40px;text-align:right;font-size:13px;color:var(--ink2);font-variant-numeric:tabular-nums">{{ it.pct }}</span>
+                </div>
+                <div style="height:8px;border-radius:2px;background:var(--track)"><div style="height:8px;border-radius:2px;background:var(--ink);width:{{ it.w }}"></div></div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:20px">
+      <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:22px clamp(16px,2.5vw,26px);display:flex;flex-direction:column;gap:20px">
+        <span style="display:flex;align-items:center;gap:8px;font:700 12px/1 var(--font);letter-spacing:.18em;color:var(--ink2)"><span style="width:10px;height:10px;background:var(--sign);border:1px solid var(--ink)"></span>NETWORK</span>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font:700 13px/1.3 var(--font)">Cloudflare data centers</span>
+          <span style="font:400 13px/1.4 var(--font);color:var(--ink2)">Edge locations that served the redirect. Codes follow IATA airport codes.</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px">
+          <sc-for list="{{ net.dcs }}" as="dc">
+            <div style="display:flex;flex-direction:column;gap:6px;padding:12px;border:1.5px solid var(--ink);border-radius:8px;background:#F3F5F8">
+              <span style="font:700 24px/1 var(--mono);letter-spacing:.06em">{{ dc.code }}</span>
+              <span style="font:400 12px/1.2 var(--font);color:var(--ink2)">{{ dc.city }}</span>
+              <span style="font:700 15px/1 var(--font);font-variant-numeric:tabular-nums">{{ dc.count }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding-top:6px;border-top:1px solid var(--hair)">
+          <span style="font:700 13px/1.3 var(--font);padding-top:12px">Network organizations (ASN)</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <sc-for list="{{ net.asns }}" as="as">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;gap:10px;font:400 14px/1.3 var(--font)">
+                <span style="flex:none;font:700 12px/1 var(--mono);padding:5px 7px;border:1.5px solid var(--ink);border-radius:5px;background:#F3F5F8;min-width:74px;text-align:center">{{ as.asn }}</span>
+                <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ as.org }}</span>
+                <span style="font-weight:700;font-variant-numeric:tabular-nums">{{ as.count }}</span>
+              </div>
+              <div style="height:6px;border-radius:2px;background:var(--track)"><div style="height:6px;border-radius:2px;background:var(--ink);width:{{ as.w }}"></div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);border:2px solid var(--bot);padding:22px clamp(16px,2.5vw,26px);display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+          <span style="background:var(--bot);color:#fff;font:800 12px/1 var(--font);letter-spacing:.16em;padding:7px 10px;border-radius:4px;box-shadow:var(--badge-in)">BOT CLICKS</span>
+          <span style="font:800 28px/1 var(--font);color:var(--bot);font-variant-numeric:tabular-nums">{{ a.bot }}</span>
+        </div>
+        <p style="margin:0;font:400 14px/1.55 var(--font);color:var(--ink);text-wrap:pretty">These clicks come from services that fetch a link preview when daffa.me/{{ d.slug }} is shared in messaging apps or on social media. Bot clicks are not counted as human clicks or unique visitors.</p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <sc-for list="{{ bots }}" as="b">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:baseline;gap:10px;font:400 14px/1.3 var(--font)">
+                <span style="flex:1;min-width:0;font-family:var(--mono);font-weight:500">{{ b.label }}</span>
+                <span style="font-weight:700;font-variant-numeric:tabular-nums">{{ b.count }}</span>
+                <span style="width:40px;text-align:right;font-size:13px;color:var(--ink2)">{{ b.pct }}</span>
+              </div>
+              <div style="height:8px;border-radius:2px;background:var(--bot-tint)"><div style="height:8px;border-radius:2px;background:var(--bot);width:{{ b.w }}"></div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);overflow:hidden">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:18px 22px;border-bottom:1px solid var(--hair)">
+        <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">RECENT CLICK LOG</span>
+        <span style="font:400 13px/1.3 var(--font);color:var(--ink2)">Times in WIB</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;min-width:1040px;border-collapse:collapse;font:400 14px/1.35 var(--font)">
+          <thead>
+            <tr style="text-align:left;font:700 11px/1.2 var(--font);letter-spacing:.12em;color:var(--ink2)">
+              <th style="padding:12px 22px;border-bottom:1px solid var(--line);font-weight:700">TIME</th>
+              <th style="padding:12px 12px;border-bottom:1px solid var(--line);font-weight:700">IP ADDRESS</th>
+              <th style="padding:12px 12px;border-bottom:1px solid var(--line);font-weight:700">LOCATION</th>
+              <th style="padding:12px 12px;border-bottom:1px solid var(--line);font-weight:700">NETWORK</th>
+              <th style="padding:12px 12px;border-bottom:1px solid var(--line);font-weight:700">DEVICE</th>
+              <th style="padding:12px 12px;border-bottom:1px solid var(--line);font-weight:700">REFERRER</th>
+              <th style="padding:12px 22px 12px 12px;border-bottom:1px solid var(--line);font-weight:700">TYPE</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ log.rows }}" as="r" hint-placeholder-count="10">
+              <tr style="background:{{ r.bg }}">
+                <td style="padding:12px 22px;border-bottom:1px solid var(--hair);white-space:nowrap;font-variant-numeric:tabular-nums"><span style="font-weight:700">{{ r.time }}</span><br><span style="color:var(--ink2);font-size:12px">{{ r.date }}</span></td>
+                <td style="padding:12px;border-bottom:1px solid var(--hair);font-family:var(--mono);font-size:13px;white-space:nowrap">{{ r.ip }}</td>
+                <td style="padding:12px;border-bottom:1px solid var(--hair);white-space:nowrap"><span style="margin-right:6px">{{ r.flag }}</span>{{ r.loc }}</td>
+                <td style="padding:12px;border-bottom:1px solid var(--hair)"><span style="display:flex;align-items:center;gap:8px"><span style="flex:none;font:700 11px/1 var(--mono);padding:4px 6px;border:1.5px solid var(--ink);border-radius:4px;background:#F3F5F8">{{ r.dc }}</span><span><span style="font-family:var(--mono);font-size:12px;color:var(--ink2)">{{ r.asn }}</span> {{ r.org }}</span></span></td>
+                <td style="padding:12px;border-bottom:1px solid var(--hair)">{{ r.device }}<br><span style="color:var(--ink2);font-size:12px">{{ r.browser }}</span></td>
+                <td style="padding:12px;border-bottom:1px solid var(--hair);font-family:var(--mono);font-size:13px">{{ r.ref }}</td>
+                <td style="padding:12px 22px 12px 12px;border-bottom:1px solid var(--hair);white-space:nowrap">
+                  <sc-if value="{{ r.isBot }}"><span style="background:var(--bot);color:#fff;font:800 11px/1 var(--font);letter-spacing:.12em;padding:5px 8px;border-radius:4px;box-shadow:var(--badge-in)">BOT</span></sc-if>
+                  <sc-if value="{{ r.isHuman }}" hint-placeholder-val="{{ true }}"><span style="font:500 13px var(--font);color:var(--ink2)">Human</span></sc-if>
+                </td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:16px 22px">
+        <span style="font:400 14px/1.3 var(--font);color:var(--ink2);font-variant-numeric:tabular-nums">{{ log.caption }}</span>
+        <nav aria-label="Log pagination" style="display:flex;gap:6px;flex-wrap:wrap">
+          <button onClick="{{ log.prev }}" disabled="{{ log.prevDisabled }}" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 14px var(--font);box-shadow:var(--raise-sm);cursor:pointer;opacity:{{ log.prevOp }}">Previous</button>
+          <sc-for list="{{ log.pages }}" as="p">
+            <button onClick="{{ p.onClick }}" aria-current="{{ p.current }}" style="width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-weight:{{ p.fw }};font-size:14px;box-shadow:{{ p.shadow }};cursor:pointer;font-variant-numeric:tabular-nums">{{ p.n }}</button>
+          </sc-for>
+          <button onClick="{{ log.next }}" disabled="{{ log.nextDisabled }}" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 14px var(--font);box-shadow:var(--raise-sm);cursor:pointer;opacity:{{ log.nextOp }}">Next</button>
+        </nav>
+      </div>
+    </div>
+  </sc-if>
+</sc-if>
+</main>
+
+<sc-if value="{{ menuOpenAny }}"><div onClick="{{ closeMenu }}" style="position:fixed;inset:0;z-index:30"></div></sc-if>
+
+<sc-if value="{{ hasForm }}">
+  <div onClick="{{ closeForm }}" style="position:fixed;inset:0;z-index:50;background:rgba(20,23,28,0.45)"></div>
+  <aside role="dialog" aria-modal="true" aria-labelledby="form-title" style="position:fixed;top:0;right:0;bottom:0;z-index:51;width:min(940px,100vw);background:var(--bg);box-shadow:-8px 0 24px rgba(20,23,28,0.25);display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px clamp(16px,3vw,32px);border-bottom:1px solid var(--hair)">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font:700 11px/1 var(--font);letter-spacing:.18em;color:var(--ink2)">{{ f.kicker }}</span>
+        <h2 id="form-title" style="margin:0;font:800 22px/1.2 var(--font)">{{ f.heading }}</h2>
+      </div>
+      <button onClick="{{ closeForm }}" aria-label="Close form" style="width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);font:700 20px/1 var(--font);color:var(--ink);cursor:pointer" style-active="box-shadow:var(--inset)">×</button>
+    </div>
+    <div style="flex:1;overflow:auto;padding:24px clamp(16px,3vw,32px)">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:28px;align-items:start">
+        <div style="display:flex;flex-direction:column;gap:22px;min-width:0">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label for="f-url" style="font:700 15px/1.2 var(--font)">Destination URL <span style="color:var(--danger)">*</span></label>
+            <input id="f-url" type="url" value="{{ f.url }}" onChange="{{ f.onUrl }}" onBlur="{{ f.onUrlBlur }}" placeholder="https://" aria-invalid="{{ f.urlInvalid }}" style="height:48px;padding:0 14px;border-radius:12px;border:{{ f.urlBorder }};background:var(--bg);box-shadow:var(--inset);font:400 15px var(--mono);color:var(--ink);width:100%">
+            <sc-if value="{{ f.urlError }}"><span role="alert" style="display:flex;gap:8px;font:700 14px/1.4 var(--font);color:var(--danger)"><span style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--danger);color:#fff;font-size:12px">!</span>{{ f.urlError }}</span></sc-if>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label for="f-slug" style="font:700 15px/1.2 var(--font)">Slug</label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <div style="flex:1 1 220px;min-width:0;display:flex;align-items:center;height:48px;border-radius:12px;border:{{ f.slugBorder }};background:var(--bg);box-shadow:var(--inset);overflow:hidden">
+                <span style="flex:none;height:100%;display:flex;align-items:center;padding:0 10px 0 14px;font:500 15px var(--mono);color:var(--ink2);border-right:1px solid var(--hair)">daffa.me/</span>
+                <input id="f-slug" value="{{ f.slug }}" onChange="{{ f.onSlug }}" aria-invalid="{{ f.slugInvalid }}" aria-describedby="slug-help" placeholder="e.g. porto-2026" style="flex:1;min-width:0;height:100%;padding:0 12px;border:0;background:transparent;font:700 15px var(--mono);color:var(--ink);outline-offset:-3px">
+              </div>
+              <button onClick="{{ f.autoSlug }}" style="height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 14px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-active="box-shadow:var(--inset)">Generate</button>
+            </div>
+            <sc-if value="{{ f.slugError }}"><span role="alert" style="display:flex;gap:8px;font:700 14px/1.4 var(--font);color:var(--danger)"><span style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--danger);color:#fff;font-size:12px">!</span>{{ f.slugError }}</span></sc-if>
+            <sc-if value="{{ f.slugOk }}"><span style="display:flex;gap:8px;font:700 14px/1.4 var(--font);color:var(--ok)"><span style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--ok);color:#fff;font-size:11px">✓</span>Slug is available.</span></sc-if>
+            <span id="slug-help" style="font:400 13px/1.45 var(--font);color:var(--ink2)">Lowercase letters, numbers, and hyphens. 2 to 80 characters, cannot start with a hyphen. {{ f.slugCount }}</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label for="f-title" style="font:700 15px/1.2 var(--font)">Title</label>
+            <input id="f-title" value="{{ f.title }}" onChange="{{ f.onTitle }}" placeholder="A short name to identify the link" style="height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--inset);font:400 15px var(--font);color:var(--ink);width:100%">
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label for="f-desc" style="font:700 15px/1.2 var(--font)">Description</label>
+            <textarea id="f-desc" value="{{ f.desc }}" onChange="{{ f.onDesc }}" rows="3" placeholder="Private notes about this link" style="padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--inset);font:400 15px/1.5 var(--font);color:var(--ink);width:100%;resize:vertical"></textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label for="f-tag" style="font:700 15px/1.2 var(--font)">Tags</label>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:48px;padding:7px 10px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--inset)">
+              <sc-for list="{{ f.tags }}" as="t">
+                <span style="display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 4px 0 12px;border-radius:999px;background:var(--ink);color:#fff;font:500 13px/1 var(--font)">#{{ t.label }}<button onClick="{{ t.onRemove }}" aria-label="{{ t.aria }}" style="width:24px;height:24px;border-radius:50%;border:0;background:transparent;color:#fff;font:700 15px/1 var(--font);cursor:pointer" style-hover="background:#3A404A">×</button></span>
+              </sc-for>
+              <input id="f-tag" value="{{ f.tagDraft }}" onChange="{{ f.onTagDraft }}" onKeyDown="{{ f.onTagKey }}" placeholder="Type a tag and press Enter" style="flex:1 1 140px;min-width:120px;height:32px;border:0;background:transparent;font:400 15px var(--font);color:var(--ink);outline-offset:2px">
+            </div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px">
+              <span style="font:400 13px var(--font);color:var(--ink2)">Existing tags</span>
+              <sc-for list="{{ f.suggest }}" as="s"><button onClick="{{ s.onAdd }}" style="height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);font:500 13px/1 var(--font);color:var(--ink);cursor:pointer" style-active="box-shadow:var(--inset)">+ {{ s.label }}</button></sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label for="f-exp" style="font:700 15px/1.2 var(--font)">Expiration <span style="font-weight:400;color:var(--ink2)">(optional)</span></label>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <input id="f-exp" type="datetime-local" value="{{ f.expires }}" onChange="{{ f.onExp }}" style="flex:1 1 220px;height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--inset);font:400 15px var(--mono);color:var(--ink)">
+              <sc-if value="{{ f.hasExp }}"><button onClick="{{ f.clearExp }}" style="height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 14px var(--font);box-shadow:var(--raise-sm);cursor:pointer">Clear date</button></sc-if>
+            </div>
+            <span style="font:400 13px/1.45 var(--font);color:var(--ink2)">Time zone WIB. Leave empty for a link that never expires.</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0;border-top:1px solid var(--hair)">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span id="sw-label" style="font:700 15px/1.2 var(--font)">Link status</span>
+              <span style="font:400 13px/1.4 var(--font);color:var(--ink2)">{{ f.activeHelp }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font:800 12px/1 var(--font);letter-spacing:.14em;color:{{ f.swColor }}">{{ f.swText }}</span>
+              <button role="switch" aria-checked="{{ f.active }}" aria-labelledby="sw-label" onClick="{{ f.toggleActive }}" style="position:relative;width:64px;height:36px;border-radius:999px;border:1px solid var(--line);background:{{ f.swTrack }};box-shadow:var(--inset);cursor:pointer;padding:0">
+                <span style="position:absolute;top:4px;left:{{ f.swLeft }};width:26px;height:26px;border-radius:50%;background:var(--bg);border:1px solid var(--line);box-shadow:2px 2px 4px rgba(20,23,28,0.35),-1px -1px 3px rgba(255,255,255,0.8)"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:0">
+          <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">PREVIEW</span>
+          <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:22px;display:flex;flex-direction:column;gap:16px">
+            <span style="align-self:flex-start;display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 26px/1 var(--mono);padding:14px 16px;border-radius:10px;max-width:100%;overflow-wrap:anywhere"><span style="color:#8E97A6;font-size:.62em">daffa.me/</span>{{ f.previewSlug }}</span>
+            <div style="display:flex;align-items:baseline;gap:8px;min-width:0"><span style="font:400 14px/1.4 var(--mono);color:var(--link);overflow-wrap:anywhere">{{ f.previewDest }}</span></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <span style="background:{{ f.previewStatusBg }};color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">{{ f.previewStatus }}</span>
+              <span style="font:400 13px/1.3 var(--font);color:var(--ink2)">{{ f.previewExp }}</span>
+            </div>
+            <div style="background:#FFFFFF;border-radius:10px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:10px">
+              <sc-if value="{{ f.qr.ready }}"><svg viewBox="{{ f.qr.vb }}" width="160" height="160" shape-rendering="crispEdges" role="img" aria-label="QR code preview"><path d="{{ f.qr.d }}" fill="#14171C"></path></svg></sc-if>
+              <sc-if value="{{ f.qr.loading }}"><div style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;font:500 13px var(--font);color:var(--ink2)">Loading QR</div></sc-if>
+              <span style="font:500 12px/1.3 var(--mono);color:var(--ink)">{{ f.qrText }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:16px clamp(16px,3vw,32px);border-top:1px solid var(--hair);background:var(--bg)">
+      <sc-if value="{{ f.isEdit }}"><button onClick="{{ f.onDelete }}" style="height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--danger);background:var(--bg);color:var(--danger);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">Delete Link</button></sc-if>
+      <span style="flex:1"></span>
+      <sc-if value="{{ f.hasErrors }}"><span role="status" style="font:700 14px/1.3 var(--font);color:var(--danger)">Please review the highlighted fields.</span></sc-if>
+      <button onClick="{{ closeForm }}" style="height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">Cancel</button>
+      <button onClick="{{ f.onSave }}" style="height:48px;padding:0 22px;border-radius:12px;border:1px solid var(--ink);background:var(--sign);color:var(--ink);font:800 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:#FFD21F" style-active="box-shadow:inset 3px 3px 6px #B89400,inset -3px -3px 6px #FFE36B">{{ f.saveLabel }}</button>
+    </div>
+  </aside>
+</sc-if>
+
+<sc-if value="{{ hasQR }}">
+  <div onClick="{{ closeQR }}" style="position:fixed;inset:0;z-index:60;background:rgba(20,23,28,0.5);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div role="dialog" aria-modal="true" aria-labelledby="qr-title" onClick="{{ stop }}" style="width:min(440px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--bg);border-radius:16px;box-shadow:var(--lift);padding:24px;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font:700 11px/1 var(--font);letter-spacing:.18em;color:var(--ink2)">QR CODE</span>
+          <h2 id="qr-title" style="margin:0;font:800 20px/1.25 var(--font)">{{ qr.title }}</h2>
+        </div>
+        <button onClick="{{ closeQR }}" aria-label="Close" style="flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);font:700 20px/1 var(--font);color:var(--ink);cursor:pointer">×</button>
+      </div>
+      <div style="background:#FFFFFF;border-radius:12px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:14px">
+        <sc-if value="{{ qr.code.ready }}"><svg viewBox="{{ qr.code.vb }}" width="240" height="240" shape-rendering="crispEdges" role="img" aria-label="{{ qr.aria }}" style="max-width:100%;height:auto"><path d="{{ qr.code.d }}" fill="#14171C"></path></svg></sc-if>
+        <sc-if value="{{ qr.code.loading }}"><div style="width:240px;height:240px;display:flex;align-items:center;justify-content:center;font:500 14px var(--font);color:var(--ink2)">Loading QR</div></sc-if>
+        <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 18px/1 var(--mono);padding:10px 12px;border-radius:8px"><span style="color:#8E97A6;font-size:.75em">daffa.me/</span>{{ qr.slug }}</span>
+      </div>
+      <p style="margin:0;font:400 14px/1.55 var(--font);color:var(--ink);text-wrap:pretty">The QR code contains the short address daffa.me/{{ qr.slug }}, not the destination URL. Printed codes keep working even if the destination changes later.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button onClick="{{ qr.png }}" style="height:48px;border-radius:12px;border:1px solid var(--ink);background:var(--sign);color:var(--ink);font:800 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:inset 3px 3px 6px #B89400,inset -3px -3px 6px #FFE36B">Download PNG</button>
+        <button onClick="{{ qr.svg }}" style="height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">Download SVG</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasDel }}">
+  <div style="position:fixed;inset:0;z-index:70;background:rgba(20,23,28,0.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div role="alertdialog" aria-modal="true" aria-labelledby="del-title" aria-describedby="del-desc" style="width:min(480px,100%);background:var(--bg);border-radius:16px;box-shadow:var(--lift);padding:26px;display:flex;flex-direction:column;gap:16px">
+      <span style="align-self:flex-start;background:var(--danger);color:#fff;font:800 11px/1 var(--font);letter-spacing:.16em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">PERMANENT DELETE</span>
+      <h2 id="del-title" style="margin:0;font:800 22px/1.25 var(--font)">Delete link daffa.me/{{ del.slug }}?</h2>
+      <p id="del-desc" style="margin:0;font:400 15px/1.55 var(--font);color:var(--ink);text-wrap:pretty">The link and all of its click data will be deleted, including {{ del.human }} human clicks and {{ del.bot }} bot clicks. Visitors who open this address will see the link not found page. This action cannot be undone.</p>
+      <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding-top:4px">
+        <button onClick="{{ closeDel }}" style="height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-active="box-shadow:var(--inset)">Cancel</button>
+        <button onClick="{{ doDelete }}" style="height:48px;padding:0 20px;border-radius:12px;border:1px solid #8E1C1C;background:var(--danger);color:#FFFFFF;font:800 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:#B02323" style-active="box-shadow:inset 3px 3px 6px #8E1C1C,inset -2px -2px 5px #E25555">Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}">
+  <div role="status" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:80;background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font:500 15px/1.3 var(--font);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 32px)"><span style="width:8px;height:8px;border-radius:50%;background:var(--sign)"></span>{{ toast }}</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;listState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;normal&quot;,&quot;loading&quot;,&quot;empty&quot;,&quot;error&quot;],&quot;default&quot;:&quot;normal&quot;,&quot;tsType&quot;:&quot;'normal'|'loading'|'empty'|'error'&quot;,&quot;section&quot;:&quot;States&quot;},&quot;detailState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;data&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;data&quot;,&quot;tsType&quot;:&quot;'data'|'empty'&quot;,&quot;section&quot;:&quot;States&quot;},&quot;startView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;list&quot;,&quot;detail&quot;],&quot;default&quot;:&quot;list&quot;,&quot;tsType&quot;:&quot;'list'|'detail'&quot;,&quot;section&quot;:&quot;States&quot;}}">
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pad=n=>String(n).padStart(2,'0');
+const nf=n=>Math.round(n).toLocaleString('en-US');
+const fD=d=>d.getDate()+' '+MON[d.getMonth()]+' '+d.getFullYear();
+const fT=d=>pad(d.getHours())+':'+pad(d.getMinutes());
+const fDT=d=>fD(d)+', '+fT(d)+' WIB';
+const NOW=new Date(2026,8,27,14,32);
+const TODAY=new Date(2026,8,27);
+const D=(y,m,d,h=0,mi=0)=>new Date(y,m-1,d,h,mi);
+const sameDay=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function rng(seed){let a=seed;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const RESERVED=['api','admin','dashboard','shorten','www','static','assets','login','logout','health','qr','favicon','robots'];
+const STATUS={aktif:{label:'ACTIVE',bg:'#1E7F4F'},nonaktif:{label:'INACTIVE',bg:'#5B6472'},kedaluwarsa:{label:'EXPIRED',bg:'#B4501A'}};
+const SPIKES=[{d:D(2026,9,15),mult:4.2,text:'Shared on LinkedIn'},{d:D(2026,7,3),mult:3.2,text:'Linked from Kaggle profile'}];
+const SEED=[
+ {id:1,slug:'cv',url:'https://www.linkedin.com/in/daffarestupratama',title:'CV and LinkedIn profile',desc:'Main link on business cards and email signature.',tags:['career'],status:'aktif',created:D(2026,3,12,9,14),expires:null,base:58,spikes:true},
+ {id:2,slug:'porto-2026',url:'https://daffarestupratama.com/portofolio/2026',title:'Portfolio 2026',desc:'Data analysis and software engineering projects from 2026.',tags:['career','portfolio'],status:'aktif',created:D(2026,1,5,20,2),expires:D(2026,12,31,23,59),base:31,spikes:true},
+ {id:3,slug:'wa',url:'https://wa.me/6281234567890?text=Halo%20Daffa',title:'WhatsApp contact',desc:'Opens a WhatsApp chat with a greeting message.',tags:['contact'],status:'aktif',created:D(2026,2,2,11,40),expires:null,base:22},
+ {id:4,slug:'kaggle',url:'https://www.kaggle.com/daffarestupratama',title:'Kaggle profile',desc:'Notebooks and past competitions.',tags:['data'],status:'aktif',created:D(2026,4,18,16,5),expires:null,base:9},
+ {id:5,slug:'k7m2qx',url:'https://docs.google.com/forms/d/e/1FAIpQLSf8wYk2Rm/viewform',title:'Family gathering RSVP form',desc:'Attendance form for a family gathering.',tags:['event'],status:'kedaluwarsa',created:D(2026,9,1,8,30),expires:D(2026,9,20,23,59),base:14},
+ {id:6,slug:'gh',url:'https://github.com/daffarestupratama',title:'GitHub repositories',desc:'Source code for personal projects.',tags:['code'],status:'aktif',created:D(2026,3,1,10,0),expires:null,base:12},
+ {id:7,slug:'slide-pydata',url:'https://speakerdeck.com/daffarestupratama/pydata-jakarta-2026',title:'PyData Jakarta slides',desc:'Talk slides from the PyData Jakarta meetup.',tags:['event','data'],status:'nonaktif',created:D(2026,5,22,19,0),expires:null,base:6},
+ {id:8,slug:'resume-en',url:'https://drive.google.com/file/d/1aB9xZqR7tLmN4/view',title:'English resume',desc:'PDF for international applications.',tags:['career'],status:'aktif',created:D(2026,9,20,13,10),expires:D(2026,10,15,23,59),base:4},
+ {id:9,slug:'jadwal',url:'https://calendar.app.google/Rk2nVx8QpLm',title:'Schedule a meeting',desc:'Booking page for a 30 minute call.',tags:['contact'],status:'aktif',created:D(2026,9,27,10,5),expires:null,base:0},
+];
+const DIST={
+ negara:[['Indonesia','🇮🇩',.79],['Singapore','🇸🇬',.06],['Malaysia','🇲🇾',.04],['United States','🇺🇸',.04],['Japan','🇯🇵',.03],['Netherlands','🇳🇱',.02],['Other','🌐',.02]],
+ kota:[['Jakarta','',.34],['Depok','',.14],['Bandung','',.11],['Surabaya','',.09],['Tangerang Selatan','',.07],['Singapore','',.06],['Yogyakarta','',.05]],
+ perangkat:[['Mobile','',.68],['Desktop','',.29],['Tablet','',.03]],
+ browser:[['Chrome','',.51],['Safari','',.21],['Samsung Internet','',.08],['In-app browser','',.09],['Edge','',.07],['Firefox','',.04]],
+ os:[['Android','',.49],['iOS','',.22],['Windows','',.18],['macOS','',.08],['Linux','',.03]],
+ referrer:[['Direct (no referrer)','',.41],['linkedin.com','',.22],['l.instagram.com','',.12],['google.com','',.08],['t.co','',.06],['github.com','',.05],['Other','',.06]],
+};
+const RANK_TITLES=[['negara','COUNTRY'],['kota','CITY'],['perangkat','DEVICE'],['browser','BROWSER'],['os','OPERATING SYSTEM'],['referrer','REFERRER']];
+const ASNS=[['AS7713','PT TELKOM INDONESIA',.31],['AS23693','PT Telekomunikasi Selular',.22],['AS4761','INDOSAT Internet Network Provider',.11],['AS24203','PT XL Axiata',.09],['AS17451','BIZNET NETWORKS',.07],['AS9506','Singtel Fibre Broadband',.05],['AS2516','KDDI CORPORATION',.03]];
+const DCS=[['CGK','Jakarta',.81],['SIN','Singapore',.12],['NRT','Tokyo',.03],['KUL','Kuala Lumpur',.02],['AMS','Amsterdam',.02]];
+const BOTS=[['WhatsApp','',.38],['TelegramBot','',.17],['LinkedInBot','',.16],['facebookexternalhit','',.12],['Googlebot','',.07],['Twitterbot','',.05],['Slackbot','',.03],['Other','',.02]];
+const HUM=[
+ {ip:'36.72.{a}.{b}',asn:'AS7713',org:'PT TELKOM INDONESIA',flag:'🇮🇩',loc:'Jakarta',dc:'CGK'},
+ {ip:'114.124.{a}.{b}',asn:'AS23693',org:'PT Telekomunikasi Selular',flag:'🇮🇩',loc:'Depok',dc:'CGK'},
+ {ip:'180.244.{a}.{b}',asn:'AS7713',org:'PT TELKOM INDONESIA',flag:'🇮🇩',loc:'Bandung',dc:'CGK'},
+ {ip:'2001:448a:{a}:{b}::1',asn:'AS7713',org:'PT TELKOM INDONESIA',flag:'🇮🇩',loc:'Surabaya',dc:'CGK'},
+ {ip:'114.5.{a}.{b}',asn:'AS4761',org:'INDOSAT Internet Network Provider',flag:'🇮🇩',loc:'Tangerang Selatan',dc:'CGK'},
+ {ip:'112.215.{a}.{b}',asn:'AS24203',org:'PT XL Axiata',flag:'🇮🇩',loc:'Yogyakarta',dc:'SIN'},
+ {ip:'203.117.{a}.{b}',asn:'AS9506',org:'Singtel Fibre Broadband',flag:'🇸🇬',loc:'Singapore',dc:'SIN'},
+ {ip:'106.130.{a}.{b}',asn:'AS2516',org:'KDDI CORPORATION',flag:'🇯🇵',loc:'Tokyo',dc:'NRT'},
+ {ip:'145.53.{a}.{b}',asn:'AS1136',org:'KPN B.V.',flag:'🇳🇱',loc:'Amsterdam',dc:'AMS'},
+];
+const DEV=[['Mobile','Chrome 129 · Android 15'],['Mobile','Safari · iOS 18'],['Desktop','Chrome 129 · Windows 11'],['Mobile','Samsung Internet · Android 14'],['Desktop','Safari · macOS'],['Mobile','Instagram · Android 15'],['Desktop','Firefox 131 · Linux']];
+const REFS=['linkedin.com','(direct)','l.instagram.com','google.com','(direct)','github.com','t.co'];
+const BOTROWS=[
+ {ip:'173.252.{a}.{b}',asn:'AS32934',org:'Facebook, Inc.',flag:'🇺🇸',loc:'Ashburn',dc:'SIN',device:'Crawler',browser:'WhatsApp/2.24'},
+ {ip:'149.154.{a}.{b}',asn:'AS62041',org:'Telegram Messenger Inc',flag:'🇳🇱',loc:'Amsterdam',dc:'AMS',device:'Crawler',browser:'TelegramBot'},
+ {ip:'108.174.{a}.{b}',asn:'AS14413',org:'LinkedIn Corporation',flag:'🇺🇸',loc:'Chicago',dc:'SIN',device:'Crawler',browser:'LinkedInBot/1.0'},
+ {ip:'66.249.{a}.{b}',asn:'AS15169',org:'Google LLC',flag:'🇺🇸',loc:'Mountain View',dc:'SIN',device:'Crawler',browser:'Googlebot/2.1'},
+];
+const HF=[.12,.08,.06,.05,.07,.18,.45,.9,1.3,1.5,1.4,1.3,1.35,1.4,1.3,1.2,1.1,1.05,1.2,1.5,1.6,1.4,.9,.4];
+const RANGES=[['24j','24 hours'],['7h','7 days'],['30h','30 days'],['90h','90 days'],['semua','All']];
+const RANGE_TEXT={'24j':'in the last 24 hours','7h':'in the last 7 days','30h':'in the last 30 days','90h':'in the last 90 days','semua':'since the link was created'};
+const toLocalInput=d=>d?`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`:'';
+const hostPath=u=>u.replace(/^https?:\/\//,'').replace(/^www\./,'');
+
+class Component extends DCLogic {
+  state={dd:null,view:null,detailId:1,links:SEED.map(l=>({...l,tags:[...l.tags]})),q:'',tag:'semua',status:'semua',sort:'terbaru',menuFor:null,copied:null,form:null,qrFor:null,confirmDel:null,range:'30h',logPage:0,toast:null,override:null,nextId:10,qrTick:0};
+  cache={};
+  componentDidMount(){
+    this.onDoc=e=>{if(this.state.dd&&!e.target.closest('[data-dd]'))this.setState({dd:null});};document.addEventListener('mousedown',this.onDoc);
+    this.qrPoll=setInterval(()=>{if(window.qrcode){clearInterval(this.qrPoll);this.setState({qrTick:1});}},150);
+    this.onKey=e=>{if(e.key==='Escape'){if(this.state.dd)this.setState({dd:null});else if(this.state.confirmDel)this.setState({confirmDel:null});else if(this.state.qrFor)this.setState({qrFor:null});else if(this.state.form)this.setState({form:null});else if(this.state.menuFor)this.setState({menuFor:null});}};
+    window.addEventListener('keydown',this.onKey);
+  }
+  componentWillUnmount(){document.removeEventListener('mousedown',this.onDoc);clearInterval(this.qrPoll);window.removeEventListener('keydown',this.onKey);clearTimeout(this.tt);clearTimeout(this.ct);}
+  toastMsg(m){clearTimeout(this.tt);this.setState({toast:m});this.tt=setTimeout(()=>this.setState({toast:null}),2400);}
+  copy(l){try{navigator.clipboard&&navigator.clipboard.writeText('https://daffa.me/'+l.slug).catch(()=>{});}catch(e){}clearTimeout(this.ct);this.setState({copied:l.id});this.ct=setTimeout(()=>this.setState({copied:null}),1600);this.toastMsg('daffa.me/'+l.slug+' copied to clipboard');}
+  daily(l){
+    const key=l.id+'|'+l.slug+'|'+l.base+'|'+l.status;
+    if(this.cache[key])return this.cache[key];
+    const r=rng(hash(l.slug+l.id));const out=[];
+    const start=new Date(l.created.getFullYear(),l.created.getMonth(),l.created.getDate());
+    const offFrom=D(2026,9,10);
+    for(let d=new Date(start);d<=TODAY;d.setDate(d.getDate()+1)){
+      const day=new Date(d);const wd=day.getDay();const wf=(wd===0||wd===6)?.72:1.08;
+      let mult=1,note=null;
+      if(l.spikes)for(const s of SPIKES)if(sameDay(s.d,day)){mult=s.mult;note=s.text;}
+      let h=Math.round(l.base*(.55+.9*r())*wf*mult);
+      if(sameDay(day,TODAY))h=Math.round(h*.6);
+      if(l.status==='kedaluwarsa'&&l.expires&&day>l.expires)h=0;
+      if(l.status==='nonaktif'&&day>=offFrom)h=0;
+      const u=Math.round(h*(.6+.12*r()));const b=h?Math.round(h*.14+r()*2.5):0;
+      out.push({date:day,h,u,b,note});
+    }
+    this.cache[key]=out;return out;
+  }
+  series(l,range){
+    if(range==='24j'){
+      const r=rng(hash(l.slug+'24'));const pts=[];
+      for(let k=0;k<24;k++){const hr=(15+k)%24;const dt=k<9?D(2026,9,26,hr):D(2026,9,27,hr);
+        let m=1,note=null;if(l.spikes&&k===18){m=3.4;note='Shared in an alumni WhatsApp group';}
+        let h=Math.round(l.base/24*HF[hr]*(.5+r())*m*1.6);
+        if(l.status!=='aktif')h=0;
+        pts.push({date:dt,h,u:Math.round(h*.8),b:h?Math.round(h*.15+r()):0,note,label:pad(hr)+':00'});}
+      return pts;
+    }
+    const d=this.daily(l);
+    if(range==='semua'){
+      const m={};const order=[];
+      d.forEach(p=>{const k=p.date.getFullYear()+'-'+p.date.getMonth();if(!m[k]){m[k]={date:p.date,h:0,u:0,b:0,note:null,label:MON[p.date.getMonth()]};order.push(k);}m[k].h+=p.h;m[k].u+=p.u;m[k].b+=p.b;if(p.note&&!m[k].note)m[k].note='Includes spike on '+p.date.getDate()+' '+MON[p.date.getMonth()]+'. '+p.note;});
+      return order.map(k=>m[k]);
+    }
+    const n={'7h':7,'30h':30,'90h':90}[range];
+    return d.slice(-n).map(p=>({...p,label:p.date.getDate()+' '+MON[p.date.getMonth()]}));
+  }
+  sum(l,days){const d=this.daily(l).slice(-days);return d.reduce((a,p)=>({h:a.h+p.h,u:a.u+p.u,b:a.b+p.b}),{h:0,u:0,b:0});}
+  totals(l){return this.daily(l).reduce((a,p)=>({h:a.h+p.h,b:a.b+p.b}),{h:0,b:0});}
+  qrOf(text){
+    if(!window.qrcode)return {ready:false,loading:true};
+    const q=window.qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount();let d='';
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c} ${r}h1v1h-1z`;
+    return {ready:true,loading:false,n,d,vb:`0 0 ${n} ${n}`};
+  }
+  download(slug,kind){
+    const qr=this.qrOf('https://daffa.me/'+slug);if(!qr.ready)return;
+    const name='daffa-me-'+slug;const a=document.createElement('a');
+    if(kind==='svg'){
+      const s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 ${qr.n+8} ${qr.n+8}" width="1024" height="1024" shape-rendering="crispEdges"><rect x="-4" y="-4" width="${qr.n+8}" height="${qr.n+8}" fill="#FFFFFF"/><path d="${qr.d}" fill="#14171C"/></svg>`;
+      a.href=URL.createObjectURL(new Blob([s],{type:'image/svg+xml'}));a.download=name+'.svg';a.click();
+    }else{
+      const sc=16,sz=(qr.n+8)*sc;const cv=document.createElement('canvas');cv.width=cv.height=sz;const x=cv.getContext('2d');
+      x.fillStyle='#fff';x.fillRect(0,0,sz,sz);x.fillStyle='#14171C';
+      const q=window.qrcode(0,'M');q.addData('https://daffa.me/'+slug);q.make();
+      for(let r=0;r<qr.n;r++)for(let c=0;c<qr.n;c++)if(q.isDark(r,c))x.fillRect((c+4)*sc,(r+4)*sc,sc,sc);
+      a.href=cv.toDataURL('image/png');a.download=name+'.png';a.click();
+    }
+    this.toastMsg('Downloaded '+name+'.'+kind);
+  }
+  openCreate=()=>this.setState({menuFor:null,form:{mode:'buat',id:null,url:'',slug:'',title:'',desc:'',tags:[],tagDraft:'',expires:'',active:true,tried:false,urlTouched:false}});
+  openEdit(l){this.setState({menuFor:null,form:{mode:'edit',id:l.id,url:l.url,slug:l.slug,title:l.title,desc:l.desc,tags:[...l.tags],tagDraft:'',expires:toLocalInput(l.expires),active:l.status!=='nonaktif',tried:false,urlTouched:true}});}
+  setF(p){this.setState(s=>({form:{...s.form,...p}}));}
+  urlErr(f){
+    const v=f.url.trim();if(!v)return (f.tried||f.urlTouched)?'Destination URL is required.':null;
+    let u;try{u=new URL(v);}catch(e){return 'Invalid URL format. Use a full address starting with https://';}
+    if(!/^https?:$/.test(u.protocol)||!u.hostname.includes('.'))return 'Invalid URL format. Use a full address starting with https://';
+    if(/(^|\.)daffa\.me$/.test(u.hostname)&&!u.hostname.startsWith('shorten'))return 'Destination URL cannot point to daffa.me because it would create a redirect loop.';
+    return null;
+  }
+  slugErr(f){
+    const s=f.slug;
+    if(!s)return f.tried?'Slug is required. Press Generate to fill in a random slug.':null;
+    if(s.startsWith('-'))return 'Slug cannot start with a hyphen.';
+    if(/[A-Z]/.test(s))return 'Slug must be lowercase. Replace uppercase letters with lowercase.';
+    if(/[^a-z0-9-]/.test(s))return 'Slug may only contain lowercase letters, numbers, and hyphens.';
+    if(s.length<2)return 'Slug must be at least 2 characters.';
+    if(s.length>80)return 'Slug must be 80 characters or fewer.';
+    if(RESERVED.includes(s))return `"${s}" is a reserved word and cannot be used.`;
+    const o=this.state.links.find(l=>l.slug===s&&l.id!==f.id);
+    if(o)return `This slug is already used by "${o.title}".`;
+    return null;
+  }
+  save(){
+    const f={...this.state.form,tried:true};
+    if(this.urlErr(f)||this.slugErr(f)){this.setState({form:f});return;}
+    const exp=f.expires?new Date(f.expires):null;
+    const status=exp&&exp<NOW?'kedaluwarsa':(f.active?'aktif':'nonaktif');
+    const data={slug:f.slug,url:f.url.trim(),title:f.title.trim()||hostPath(f.url.trim()).split('/')[0],desc:f.desc.trim(),tags:f.tags,expires:exp,status};
+    if(f.mode==='edit'){this.setState(s=>({links:s.links.map(l=>l.id===f.id?{...l,...data}:l),form:null}));}
+    else{this.setState(s=>({links:[{id:s.nextId,created:new Date(NOW),base:0,...data},...s.links],nextId:s.nextId+1,form:null}));}
+    this.toastMsg('Link daffa.me/'+f.slug+' saved');
+  }
+  addTag(t){t=t.trim().toLowerCase().replace(/^#/,'').replace(/[,\s]+/g,'-');if(!t)return;const f=this.state.form;if(f.tags.includes(t)){this.setF({tagDraft:''});return;}this.setF({tags:[...f.tags,t],tagDraft:''});}
+  renderVals(){
+    const s=this.state,p=this.props;
+    const view=s.view||(p.startView==='detail'?'detail':'daftar');
+    const listState=s.override||p.listState||'normal';
+    const links=listState==='empty'?[]:s.links;
+    const segO=(on)=>({shadow:on?'var(--inset)':'none',fw:on?700:500,color:on?'var(--ink)':'var(--ink2)',on:on?'true':'false'});
+    const w7=l=>this.sum(l,7);
+    // list
+    const allTags=[...new Set(s.links.flatMap(l=>l.tags))].sort();
+    const q=s.q.trim().toLowerCase();
+    let filtered=links.filter(l=>(!q||l.slug.includes(q)||l.title.toLowerCase().includes(q)||l.url.toLowerCase().includes(q))&&(s.tag==='semua'||l.tags.includes(s.tag))&&(s.status==='semua'||l.status===s.status));
+    filtered=[...filtered].sort(s.sort==='klik'?(a,b)=>w7(b).h-w7(a).h:(a,b)=>b.created-a.created);
+    const rows=filtered.map((l,i)=>{const st=STATUS[l.status];return{
+      slug:l.slug,title:l.title,url:l.url,dest:hostPath(l.url),tags:l.tags,clicks:nf(w7(l).h),statusLabel:st.label,statusBg:st.bg,
+      expiry:l.status==='kedaluwarsa'?'Ended '+fD(l.expires):(l.expires?'Valid until '+fD(l.expires):'No expiration'),
+      sep:i===filtered.length-1?'none':'1px solid var(--hair)',isCopied:s.copied===l.id,notCopied:s.copied!==l.id,copyAria:'Copy daffa.me/'+l.slug,
+      onCopy:()=>this.copy(l),onQR:()=>this.setState({qrFor:l.id,menuFor:null}),onEdit:()=>this.openEdit(l),
+      onDetail:()=>{this.setState({view:'detail',detailId:l.id,logPage:0,menuFor:null});window.scrollTo(0,0);},
+      menuOpen:s.menuFor===l.id,menuShadow:s.menuFor===l.id?'var(--inset)':'var(--raise-sm)',
+      onMenu:()=>this.setState({menuFor:s.menuFor===l.id?null:l.id}),
+      toggleLabel:l.status==='aktif'?'Deactivate link':'Reactivate',
+      onToggle:()=>{const ns=l.status==='aktif'?'nonaktif':'aktif';this.setState(x=>({menuFor:null,links:x.links.map(y=>y.id===l.id?{...y,status:ns,expires:ns==='aktif'&&y.status==='kedaluwarsa'?null:y.expires}:y)}));this.toastMsg('daffa.me/'+l.slug+(ns==='aktif'?' activated':' deactivated'));},
+      onDelete:()=>this.setState({confirmDel:l.id,menuFor:null}),
+    };});
+    const k7=links.reduce((a,l)=>{const t=w7(l);return{h:a.h+t.h,u:a.u+t.u};},{h:0,u:0});
+    const top=[...links].sort((a,b)=>w7(b).h-w7(a).h)[0];
+    const isNormal=listState==='normal';
+    const out={
+      isList:view==='daftar',isDetail:view==='detail',
+      goList:()=>{this.setState({view:'daftar',menuFor:null});window.scrollTo(0,0);},
+      openCreate:this.openCreate,
+      showKpi:isNormal&&links.length>0,showToolbar:isNormal&&links.length>0,
+      kpi:{active:nf(links.filter(l=>l.status==='aktif').length),total:nf(links.length),human:nf(k7.h),unique:nf(k7.u),topSlug:top?top.slug:'',topClicks:top?nf(w7(top).h):'0',topTitle:top?top.title+' · human clicks':''},
+      q:s.q,onQ:e=>this.setState({q:e.target.value}),allTags,
+      ...(()=>{const mk=(cur,k,label,field)=>({label,sel:cur===k?'true':'false',shadow:cur===k?'var(--inset)':'none',fw:cur===k?800:500,check:cur===k?'✓':'',onClick:()=>this.setState({[field]:k,dd:null})});
+        const tagList=[['semua','All tags'],...allTags.map(t=>[t,'#'+t])];const sortList=[['terbaru','Sort: Newest'],['klik','Sort: Most clicks']];
+        const tg=o=>()=>this.setState(x=>({dd:x.dd===o?null:o}));
+        return {tagLabel:(tagList.find(x=>x[0]===s.tag)||tagList[0])[1],sortLabel:(sortList.find(x=>x[0]===s.sort)||sortList[0])[1],
+          ddTag:s.dd==='tag',ddSort:s.dd==='sort',toggleTag:tg('tag'),toggleSort:tg('sort'),
+          ddTagSh:s.dd==='tag'?'var(--inset)':'var(--raise-sm)',ddSortSh:s.dd==='sort'?'var(--inset)':'var(--raise-sm)',
+          tagOpts:tagList.map(([k,l])=>mk(s.tag,k,l,'tag')),sortOpts:sortList.map(([k,l])=>mk(s.sort,k,l,'sort'))};})(),
+      statusOpts:[['semua','All'],['aktif','Active'],['nonaktif','Inactive'],['kedaluwarsa','Expired']].map(([k,label])=>({label,...segO(s.status===k),onClick:()=>this.setState({status:k})})),
+      isLoading:listState==='loading',skel:[1,2,3,4,5],
+      isError:listState==='error',retry:()=>{this.setState({override:'loading'});setTimeout(()=>this.setState({override:'normal'}),1200);},
+      isEmpty:isNormal&&links.length===0||listState==='empty',
+      noResults:isNormal&&links.length>0&&rows.length===0,
+      resetFilters:()=>this.setState({q:'',tag:'semua',status:'semua'}),
+      hasRows:isNormal&&rows.length>0,rows,rowsCaption:nf(rows.length)+' OF '+nf(links.length)+' LINKS',
+      menuOpenAny:!!s.menuFor,closeMenu:()=>this.setState({menuFor:null}),
+      toast:s.toast,hasToast:!!s.toast,stop:e=>e.stopPropagation(),
+    };
+    // detail
+    const l=s.links.find(x=>x.id===s.detailId)||s.links[0];
+    if(l){
+      const st=STATUS[l.status];
+      out.d={slug:l.slug,url:l.url,dest:hostPath(l.url),title:l.title,desc:l.desc||'No description.',tags:l.tags,statusLabel:st.label,statusBg:st.bg,
+        created:fDT(l.created),expires:l.expires?fDT(l.expires):'None',copyLabel:s.copied===l.id?'Copied':'Copy',
+        onCopy:()=>this.copy(l),onQR:()=>this.setState({qrFor:l.id}),onEdit:()=>this.openEdit(l)};
+      out.rangeOpts=RANGES.map(([k,label])=>({label,...segO(s.range===k),onClick:()=>this.setState({range:k,logPage:0})}));
+      const forceEmpty=p.detailState==='empty';
+      const pts=forceEmpty?[]:this.series(l,s.range);
+      const tot=pts.reduce((a,x)=>({h:a.h+x.h,u:a.u+x.u,b:a.b+x.b}),{h:0,u:0,b:0});
+      const all=forceEmpty?{h:0,b:0}:this.totals(l);
+      const empty=all.h===0;
+      const uniq=Math.round(tot.u*(s.range==='24j'||s.range==='7h'?.95:.82));
+      let lastRel='Never',lastAbs='The link has never been opened';
+      if(!empty){const dd=this.daily(l);const last=[...dd].reverse().find(x=>x.h>0);const t=sameDay(last.date,TODAY)?new Date(2026,8,27,14,20):new Date(last.date.getFullYear(),last.date.getMonth(),last.date.getDate(),21,47);const min=Math.round((NOW-t)/60000);lastRel=min<60?min+' min ago':min<1440?Math.round(min/60)+' hours ago':Math.round(min/1440)+' days ago';lastAbs=fDT(t);}
+      out.a={human:nf(tot.h),unique:nf(uniq),bot:nf(tot.b),rangeText:RANGE_TEXT[s.range],uniqueRatio:tot.h?Math.round(uniq/tot.h*100)+'% of human clicks':'no visitors yet',lastRel,lastAbs,isEmpty:empty,hasData:!empty};
+      // chart
+      const n=pts.length,mx=Math.max(1,...pts.map(x=>x.h));
+      const step=mx<=10?2:mx<=50?10:mx<=200?20:mx<=1000?100:500;
+      const yMax=Math.ceil(mx*1.18/step)*step;
+      const X=i=>n<=1?500:i/(n-1)*1000,Y=v=>260-v/yMax*260;
+      const line=k=>pts.map((x,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(x[k]).toFixed(1)).join(' ');
+      const notes=pts.map((x,i)=>({x,i})).filter(o=>o.x.note&&o.x.h>0).map(({x,i})=>{const lp=X(i)/10;return{left:lp+'%',top:(Y(x.h)/260*100)+'%',boxLeft:lp+'%',shift:lp>70?'-100%':lp<30?'0%':'-50%',head:x.label+' · '+nf(x.h)+' clicks',text:x.note};});
+      const every=Math.max(1,Math.ceil(n/6));
+      const xLabels=pts.map((x,i)=>({x,i})).filter(o=>o.i%every===0||o.i===n-1).filter((o,j,arr)=>!(o.i!==n-1&&arr.length>1&&n-1-o.i<every*.6)).map(({x,i})=>{const lp=X(i)/10;return{label:x.label,left:lp+'%',shift:lp>95?'-100%':lp<5?'0%':'-50%'};});
+      out.c={human:n?line('h'):'',unique:n?line('u'):'',area:n?line('h')+` L${X(n-1)} 260 L${X(0)} 260 Z`:'',notes,xLabels,yMax:nf(yMax),yMid:nf(yMax/2),flat:tot.h===0};
+      const rk=(arr,total)=>{const m=Math.max(...arr.map(a=>a[a.length-1]));return arr.map(a=>{const pp=a[a.length-1];return{label:a[0],flag:a[1]||'',count:nf(total*pp),pct:Math.round(pp*100)+'%',w:(pp/m*100)+'%'};});};
+      out.rankings=RANK_TITLES.map(([k,t])=>({title:t,items:rk(DIST[k],tot.h)}));
+      out.bots=rk(BOTS,tot.b);
+      const am=ASNS[0][2];
+      out.net={dcs:DCS.map(([code,city,pp])=>({code,city,count:nf(tot.h*pp)})),asns:ASNS.map(([asn,org,pp])=>({asn,org,count:nf(tot.h*pp),w:(pp/am*100)+'%'}))};
+      // log
+      const r=rng(hash(l.slug+'log'));const logN=Math.min(47,tot.h+tot.b);const logRows=[];let t=new Date(2026,8,27,14,20);
+      for(let i=0;i<logN;i++){
+        const bot=r()<.16;const src=bot?BOTROWS[Math.floor(r()*BOTROWS.length)]:HUM[Math.floor(r()*r()*HUM.length)];
+        const a=Math.floor(r()*250)+1,b=Math.floor(r()*250)+1;
+        const dv=DEV[Math.floor(r()*DEV.length)];
+        logRows.push({time:fT(t),date:fD(t),ip:src.ip.replace('{a}',src.ip.includes(':')?(a*97).toString(16):a).replace('{b}',src.ip.includes(':')?(b*53).toString(16):b),flag:src.flag,loc:src.loc,dc:src.dc,asn:src.asn,org:src.org,
+          device:bot?src.device:dv[0],browser:bot?src.browser:dv[1],ref:bot?'(preview)':REFS[Math.floor(r()*REFS.length)],isBot:bot,isHuman:!bot,bg:bot?'var(--bot-tint)':'transparent'});
+        t=new Date(t-(Math.floor(r()*r()*240)+2)*60000);
+      }
+      const per=10,pages=Math.max(1,Math.ceil(logN/per)),pg=Math.min(s.logPage,pages-1);
+      out.log={rows:logRows.slice(pg*per,pg*per+per),caption:logN?`Showing ${pg*per+1} to ${Math.min(logN,pg*per+per)} of ${nf(logN)} recent clicks`:'No clicks yet',
+        pages:Array.from({length:pages},(_,i)=>({n:i+1,onClick:()=>this.setState({logPage:i}),shadow:i===pg?'var(--inset)':'var(--raise-sm)',fw:i===pg?800:500,current:i===pg?'page':'false'})),
+        prev:()=>this.setState({logPage:Math.max(0,pg-1)}),next:()=>this.setState({logPage:Math.min(pages-1,pg+1)}),
+        prevDisabled:pg===0,nextDisabled:pg>=pages-1,prevOp:pg===0?.45:1,nextOp:pg>=pages-1?.45:1};
+    }
+    // form
+    const f=s.form;out.hasForm=!!f;out.closeForm=()=>this.setState({form:null});
+    if(f){
+      const ue=this.urlErr(f),se=this.slugErr(f);
+      const exp=f.expires?new Date(f.expires):null;
+      const pst=exp&&exp<NOW?'kedaluwarsa':(f.active?'aktif':'nonaktif');
+      out.f={kicker:f.mode==='edit'?'EDIT LINK':'NEW LINK',heading:f.mode==='edit'?'Edit daffa.me/'+(this.state.links.find(x=>x.id===f.id)||{}).slug:'Create Link',
+        url:f.url,onUrl:e=>this.setF({url:e.target.value}),onUrlBlur:()=>this.setF({urlTouched:true}),urlError:ue,urlInvalid:ue?'true':'false',urlBorder:ue?'2px solid var(--danger)':'1px solid var(--line)',
+        slug:f.slug,onSlug:e=>this.setF({slug:e.target.value}),slugError:se,slugOk:!!f.slug&&!se,slugInvalid:se?'true':'false',slugBorder:se?'2px solid var(--danger)':(f.slug?'2px solid var(--ok)':'1px solid var(--line)'),slugCount:f.slug?`Currently ${f.slug.length} characters.`:'',
+        autoSlug:()=>{const ch='abcdefghijkmnpqrstuvwxyz23456789';let v;do{v='';for(let i=0;i<6;i++)v+=ch[Math.floor(Math.random()*ch.length)];}while(this.state.links.some(x=>x.slug===v));this.setF({slug:v});},
+        title:f.title,onTitle:e=>this.setF({title:e.target.value}),desc:f.desc,onDesc:e=>this.setF({desc:e.target.value}),
+        tags:f.tags.map(t=>({label:t,aria:'Remove tag '+t,onRemove:()=>this.setF({tags:this.state.form.tags.filter(x=>x!==t)})})),
+        tagDraft:f.tagDraft,onTagDraft:e=>{const v=e.target.value;if(v.endsWith(','))this.addTag(v.slice(0,-1));else this.setF({tagDraft:v});},
+        onTagKey:e=>{if(e.key==='Enter'){e.preventDefault();this.addTag(this.state.form.tagDraft);}else if(e.key==='Backspace'&&!this.state.form.tagDraft&&this.state.form.tags.length){this.setF({tags:this.state.form.tags.slice(0,-1)});}},
+        suggest:allTags.filter(t=>!f.tags.includes(t)).map(t=>({label:t,onAdd:()=>this.addTag(t)})),
+        expires:f.expires,onExp:e=>this.setF({expires:e.target.value}),hasExp:!!f.expires,clearExp:()=>this.setF({expires:''}),
+        active:f.active?'true':'false',toggleActive:()=>this.setF({active:!this.state.form.active}),
+        swText:f.active?'ACTIVE':'INACTIVE',swColor:f.active?'var(--ok)':'var(--off)',swTrack:f.active?'#BFDCCB':'var(--bg)',swLeft:f.active?'32px':'4px',
+        activeHelp:f.active?'Visitors are redirected to the destination URL.':'Visitors see the link unavailable page.',
+        previewSlug:f.slug||'slug',previewDest:f.url?hostPath(f.url):'Destination URL not set',previewStatus:STATUS[pst].label,previewStatusBg:STATUS[pst].bg,
+        previewExp:exp?(pst==='kedaluwarsa'?'Date has passed':'Valid until '+fDT(exp)):'No expiration',
+        qr:this.qrOf('https://daffa.me/'+(f.slug&&!se?f.slug:'slug')),qrText:'daffa.me/'+(f.slug||'slug'),
+        isEdit:f.mode==='edit',onDelete:()=>this.setState({confirmDel:f.id}),hasErrors:f.tried&&!!(ue||se),
+        saveLabel:f.mode==='edit'?'Save Changes':'Save Link',onSave:()=>this.save()};
+    }
+    // qr
+    const ql=s.links.find(x=>x.id===s.qrFor);out.hasQR=!!ql;out.closeQR=()=>this.setState({qrFor:null});
+    if(ql)out.qr={title:ql.title,slug:ql.slug,aria:'QR code for daffa.me/'+ql.slug,code:this.qrOf('https://daffa.me/'+ql.slug),png:()=>this.download(ql.slug,'png'),svg:()=>this.download(ql.slug,'svg')};
+    // delete
+    const dl=s.links.find(x=>x.id===s.confirmDel);out.hasDel=!!dl;out.closeDel=()=>this.setState({confirmDel:null});
+    if(dl){const t=this.totals(dl);out.del={slug:dl.slug,human:nf(t.h),bot:nf(t.b)};}
+    out.doDelete=()=>{const id=s.confirmDel,sl=dl&&dl.slug;this.setState(x=>({links:x.links.filter(y=>y.id!==id),confirmDel:null,form:null,view:x.detailId===id?'daftar':x.view}));this.toastMsg('Link daffa.me/'+sl+' deleted');};
+    return out;
+  }
+}
+</script>
+</body>
+</html>

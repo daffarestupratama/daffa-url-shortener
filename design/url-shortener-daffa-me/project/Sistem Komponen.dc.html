@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;700&amp;family=Atkinson+Hyperlegible+Next:wght@400;500;700;800&amp;display=swap">
+<style>
+:root{--badge-in:inset 2px 2px 4px rgba(0,0,0,0.45),inset -1px -1px 3px rgba(255,255,255,0.18),0 1px 0 rgba(255,255,255,0.8);--tile-in:10px 12px 22px rgba(20,23,28,0.45),3px 4px 6px rgba(20,23,28,0.35),-8px -8px 16px #FFFFFF,inset 1px 1px 0 rgba(255,255,255,0.22),inset -2px -2px 1px rgba(0,0,0,0.6);--lift:inset 0 1px 0 rgba(255,255,255,0.7),0 1px 2px rgba(20,23,28,0.18),0 12px 28px -6px rgba(20,23,28,0.35);--bg:#E4E8EE;--bg-hover:#ECEFF3;--sh-l:#FFFFFF;--sh-d:#B8C0CC;--line:#7A8494;--hair:#C3CAD4;--ink:#14171C;--ink2:#4A5260;--sign:#F5C400;--link:#1F5FBF;--ok:#1E7F4F;--off:#5B6472;--exp:#B4501A;--danger:#C62828;--bot:#6B4FBB;--bot-tint:#E9E4F5;--track:#CFD5DE;--raise-lg:6px 6px 12px #B8C0CC,-6px -6px 12px #FFFFFF;--raise-sm:3px 3px 6px #B8C0CC,-3px -3px 6px #FFFFFF;--inset:inset 3px 3px 6px #B8C0CC,inset -3px -3px 6px #FFFFFF;--font:'Atkinson Hyperlegible Next',system-ui,sans-serif;--mono:'Atkinson Hyperlegible Mono','IBM Plex Mono',ui-monospace,monospace}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font)}
+*{box-sizing:border-box}
+a{color:var(--link)}a:hover{color:#174A96}
+:focus-visible{outline:3px solid #1F5FBF;outline-offset:3px}
+</style>
+</helmet>
+<div style="max-width:1240px;margin:0 auto;padding:40px clamp(16px,3vw,40px) 80px;display:flex;flex-direction:column;gap:36px">
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <span style="display:flex;align-items:center;gap:8px;font:700 12px/1 var(--font);letter-spacing:.18em;color:var(--ink2)"><span style="width:10px;height:10px;background:var(--sign);border:1px solid var(--ink)"></span>COMPONENT SYSTEM</span>
+    <h1 style="margin:0;font:800 34px/1.1 var(--font)">Information Kiosk</h1>
+    <p style="margin:0;max-width:720px;font:400 16px/1.55 var(--font);color:var(--ink2);text-wrap:pretty">Three depth levels. A flat background, raised surfaces for containers and clickable controls, and inset surfaces for input fields, active selections, and status badges. Slug tiles are raised with a convex dark surface. Text and charts are always flat.</p>
+  </div>
+
+  <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:24px;display:flex;flex-direction:column;gap:18px">
+    <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">COLOR TOKENS</span>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px">
+      <sc-for list="{{ tokens }}" as="t">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="height:44px;border-radius:8px;border:1px solid var(--line);background:{{ t.hex }}"></div>
+          <span style="font:700 13px/1.2 var(--mono)">{{ t.name }}</span>
+          <span style="font:400 12px/1.2 var(--mono);color:var(--ink2)">{{ t.hex }} · {{ t.use }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:24px">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:24px;display:flex;flex-direction:column;gap:18px">
+      <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">BUTTONS</span>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+        <button style="display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 22px;border-radius:12px;border:1px solid var(--ink);background:var(--sign);color:var(--ink);font:800 16px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:#FFD21F" style-active="box-shadow:inset 3px 3px 6px #B89400,inset -3px -3px 6px #FFE36B">Create Link</button>
+        <button style="display:inline-flex;align-items:center;height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)">Secondary</button>
+        <button style="display:inline-flex;align-items:center;height:48px;padding:0 20px;border-radius:12px;border:1px solid #8E1C1C;background:var(--danger);color:#fff;font:800 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:#B02323">Delete Permanently</button>
+        <button style="display:inline-flex;align-items:center;height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--danger);background:var(--bg);color:var(--danger);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer">Delete Link</button>
+        <button aria-label="QR" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:var(--raise-sm);cursor:pointer;padding:0"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"></rect><rect x="10" y="2" width="6" height="6" rx="1"></rect><rect x="2" y="10" width="6" height="6" rx="1"></rect><rect x="11" y="11" width="4" height="4"></rect></svg></button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+        <button style="display:inline-flex;align-items:center;height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--inset)">Pressed</button>
+        <button style="display:inline-flex;align-items:center;height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);outline:3px solid #1F5FBF;outline-offset:3px">Keyboard focus</button>
+        <button disabled="" style="display:inline-flex;align-items:center;height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);opacity:.45">Disabled</button>
+      </div>
+      <p style="margin:0;font:400 13px/1.5 var(--font);color:var(--ink2)">Raised means clickable. Pressed turns inset. The #7A8494 border stays visible when shadows disappear.</p>
+    </div>
+
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:24px;display:flex;flex-direction:column;gap:18px">
+      <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">GATE TILES AND CODES</span>
+      <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+        <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 40px/1 var(--mono);padding:14px 18px;border-radius:12px"><span style="color:#8E97A6;font-size:.7em">daffa.me/</span>cv</span>
+        <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 16px/1 var(--mono);padding:10px 12px;border-radius:8px"><span style="color:#8E97A6">/</span>porto-2026</span>
+        <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 16px/1 var(--mono);padding:10px 12px;border-radius:8px"><span style="color:#8E97A6">/</span>k7m2qx</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <span style="font:700 12px/1 var(--mono);padding:5px 7px;border:1.5px solid var(--ink);border-radius:5px;background:#F3F5F8">AS7713</span>
+        <span style="font:700 12px/1 var(--mono);padding:5px 7px;border:1.5px solid var(--ink);border-radius:5px;background:#F3F5F8">AS23693</span>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:12px;border:1.5px solid var(--ink);border-radius:8px;background:#F3F5F8;width:96px"><span style="font:700 24px/1 var(--mono);letter-spacing:.06em">CGK</span><span style="font:400 12px/1.2 var(--font);color:var(--ink2)">Jakarta</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px;padding:12px;border:1.5px solid var(--ink);border-radius:8px;background:#F3F5F8;width:96px"><span style="font:700 24px/1 var(--mono);letter-spacing:.06em">SIN</span><span style="font:400 12px/1.2 var(--font);color:var(--ink2)">Singapore</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 16px/1 var(--mono);padding:10px 12px;border-radius:8px"><span style="color:#8E97A6">/</span>cv</span><a href="#" style="font:400 14px var(--mono)">linkedin.com/in/daffarestupratama</a></div>
+    </div>
+
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:24px;display:flex;flex-direction:column;gap:18px">
+      <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">STATUS BADGES AND TAG CHIPS</span>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <span style="background:var(--ok);color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">ACTIVE</span>
+        <span style="background:var(--off);color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">INACTIVE</span>
+        <span style="background:var(--exp);color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">EXPIRED</span>
+        <span style="background:var(--bot);color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">BOT</span>
+        <span style="background:var(--danger);color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">ERROR</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:999px;background:var(--track);font:500 13px/1 var(--font)">#career</span>
+        <span style="display:inline-flex;align-items:center;height:26px;padding:0 12px;border-radius:999px;background:var(--track);font:500 13px/1 var(--font)">#data</span>
+        <span style="display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 4px 0 12px;border-radius:999px;background:var(--ink);color:#fff;font:500 13px/1 var(--font)">#portfolio<button aria-label="Remove tag" style="width:24px;height:24px;border-radius:50%;border:0;background:transparent;color:#fff;font:700 15px/1 var(--font);cursor:pointer">×</button></span>
+        <button style="height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);font:500 13px/1 var(--font);color:var(--ink);cursor:pointer">+ event</button>
+      </div>
+      <p style="margin:0;font:400 13px/1.5 var(--font);color:var(--ink2)">Tags in rows are flat. Dark chips with a remove button only appear in the tag input.</p>
+    </div>
+
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:24px;display:flex;flex-direction:column;gap:18px">
+      <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">SEGMENTED CONTROL AND SWITCH</span>
+      <div role="radiogroup" style="align-self:flex-start;display:flex;gap:4px;padding:4px;border-radius:14px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);flex-wrap:wrap">
+        <sc-for list="{{ seg }}" as="o"><button role="radio" onClick="{{ o.onClick }}" style="height:40px;padding:0 16px;border-radius:10px;border:0;background:var(--bg);color:{{ o.color }};font-weight:{{ o.fw }};font-size:14px;box-shadow:{{ o.shadow }};cursor:pointer">{{ o.label }}</button></sc-for>
+      </div>
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button role="switch" aria-checked="{{ swOn }}" aria-label="Status switch" onClick="{{ toggle }}" style="position:relative;width:64px;height:36px;border-radius:999px;border:1px solid var(--line);background:{{ swTrack }};box-shadow:var(--inset);cursor:pointer;padding:0"><span style="position:absolute;top:4px;left:{{ swLeft }};width:26px;height:26px;border-radius:50%;background:var(--bg);border:1px solid var(--line);box-shadow:2px 2px 4px rgba(20,23,28,0.35),-1px -1px 3px rgba(255,255,255,0.8)"></span></button>
+          <span style="font:800 12px/1 var(--font);letter-spacing:.14em;color:{{ swColor }}">{{ swText }}</span>
+        </div>
+      </div>
+      <p style="margin:0;font:400 13px/1.5 var(--font);color:var(--ink2)">The active option looks inset and bold. The switch track is inset and the knob is raised.</p>
+    </div>
+
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:24px;display:flex;flex-direction:column;gap:18px">
+      <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">INPUT</span>
+      <input placeholder="Search slug, title, or destination URL" style="height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--inset);font:400 15px var(--font);color:var(--ink)">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;height:48px;border-radius:12px;border:2px solid var(--danger);background:var(--bg);box-shadow:var(--inset);overflow:hidden"><span style="height:100%;display:flex;align-items:center;padding:0 10px 0 14px;font:500 15px var(--mono);color:var(--ink2);border-right:1px solid var(--hair)">daffa.me/</span><input value="admin" style="flex:1;min-width:0;height:100%;padding:0 12px;border:0;background:transparent;font:700 15px var(--mono);color:var(--ink)"></div>
+        <span style="display:flex;gap:8px;font:700 14px/1.4 var(--font);color:var(--danger)"><span style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--danger);color:#fff;font-size:12px">!</span>"admin" is a reserved word and cannot be used.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;height:48px;border-radius:12px;border:2px solid var(--ok);background:var(--bg);box-shadow:var(--inset);overflow:hidden"><span style="height:100%;display:flex;align-items:center;padding:0 10px 0 14px;font:500 15px var(--mono);color:var(--ink2);border-right:1px solid var(--hair)">daffa.me/</span><input value="talk-2026" style="flex:1;min-width:0;height:100%;padding:0 12px;border:0;background:transparent;font:700 15px var(--mono);color:var(--ink)"></div>
+        <span style="display:flex;gap:8px;font:700 14px/1.4 var(--font);color:var(--ok)"><span style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--ok);color:#fff;font-size:11px">✓</span>Slug is available.</span>
+      </div>
+    </div>
+
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:24px;display:flex;flex-direction:column;gap:18px">
+      <span style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">KPI CARDS AND RANKING BARS</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div style="border-radius:16px;box-shadow:var(--raise-lg);padding:18px;display:flex;flex-direction:column;gap:8px"><span style="font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)">HUMAN CLICKS</span><span style="font:800 36px/1 var(--font);font-variant-numeric:tabular-nums">1,284</span></div>
+        <div style="border-radius:16px;box-shadow:var(--raise-lg);padding:18px;display:flex;flex-direction:column;gap:8px"><span style="font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--bot)">BOT CLICKS</span><span style="font:800 36px/1 var(--font);font-variant-numeric:tabular-nums;color:var(--bot)">187</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;gap:8px;font:400 15px var(--font)"><span>🇮🇩</span><span style="flex:1">Indonesia</span><span style="font-weight:700">1,014</span></div><div style="height:8px;border-radius:2px;background:var(--track)"><div style="height:8px;width:80%;border-radius:2px;background:var(--ink)"></div></div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;gap:8px;font:400 15px var(--font)"><span style="flex:1;font-family:var(--mono)">WhatsApp</span><span style="font-weight:700">71</span></div><div style="height:8px;border-radius:2px;background:var(--bot-tint)"><div style="height:8px;width:62%;border-radius:2px;background:var(--bot)"></div></div></div>
+      <p style="margin:0;font:400 13px/1.5 var(--font);color:var(--ink2)">This sample shows KPI cards only. In the dashboard, KPI cards sit directly on the background, never inside a panel.</p>
+    </div>
+  </div>
+
+  <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);overflow:hidden">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--hair);font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">TABLE · ONE PANEL, FLAT ROWS</div>
+    <div style="overflow-x:auto"><table style="width:100%;min-width:720px;border-collapse:collapse;font:400 14px/1.35 var(--font)">
+      <thead><tr style="text-align:left;font:700 11px var(--font);letter-spacing:.12em;color:var(--ink2)"><th style="padding:12px 22px;border-bottom:1px solid var(--line)">TIME</th><th style="padding:12px;border-bottom:1px solid var(--line)">IP ADDRESS</th><th style="padding:12px;border-bottom:1px solid var(--line)">LOCATION</th><th style="padding:12px;border-bottom:1px solid var(--line)">NETWORK</th><th style="padding:12px 22px 12px 12px;border-bottom:1px solid var(--line)">TYPE</th></tr></thead>
+      <tbody>
+        <tr><td style="padding:12px 22px;border-bottom:1px solid var(--hair);font-weight:700">14:20</td><td style="padding:12px;border-bottom:1px solid var(--hair);font:13px var(--mono)">36.72.214.18</td><td style="padding:12px;border-bottom:1px solid var(--hair)">🇮🇩 Jakarta</td><td style="padding:12px;border-bottom:1px solid var(--hair)"><span style="font:700 11px var(--mono);padding:4px 6px;border:1.5px solid var(--ink);border-radius:4px;background:#F3F5F8">CGK</span> AS7713 PT TELKOM INDONESIA</td><td style="padding:12px 22px 12px 12px;border-bottom:1px solid var(--hair);color:var(--ink2)">Human</td></tr>
+        <tr style="background:var(--bot-tint)"><td style="padding:12px 22px;font-weight:700">14:08</td><td style="padding:12px;font:13px var(--mono)">173.252.83.117</td><td style="padding:12px">🇺🇸 Ashburn</td><td style="padding:12px"><span style="font:700 11px var(--mono);padding:4px 6px;border:1.5px solid var(--ink);border-radius:4px;background:#F3F5F8">SIN</span> AS32934 Facebook, Inc.</td><td style="padding:12px 22px 12px 12px"><span style="background:var(--bot);color:#fff;font:800 11px/1 var(--font);letter-spacing:.12em;padding:5px 8px;border-radius:4px;box-shadow:var(--badge-in)">BOT</span></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div style="display:flex;justify-content:center;padding:24px;border-radius:16px;background:rgba(20,23,28,0.5)">
+    <div role="alertdialog" style="width:min(480px,100%);background:var(--bg);border-radius:16px;box-shadow:var(--lift);padding:26px;display:flex;flex-direction:column;gap:16px">
+      <span style="align-self:flex-start;background:var(--danger);color:#fff;font:800 11px/1 var(--font);letter-spacing:.16em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">PERMANENT DELETE</span>
+      <h2 style="margin:0;font:800 22px/1.25 var(--font)">Delete link daffa.me/wa?</h2>
+      <p style="margin:0;font:400 15px/1.55 var(--font)">The link and all of its click data will be deleted. This action cannot be undone.</p>
+      <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap">
+        <button style="height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm)">Cancel</button>
+        <button style="height:48px;padding:0 20px;border-radius:12px;border:1px solid #8E1C1C;background:var(--danger);color:#fff;font:800 15px var(--font);box-shadow:var(--raise-sm)">Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { r: '7h', on: true };
+  renderVals() {
+    const T = [['--bg','#E4E8EE','background'],['--sh-l','#FFFFFF','light shadow'],['--sh-d','#B8C0CC','dark shadow'],['--line','#7A8494','control border'],['--ink','#14171C','primary text'],['--ink2','#4A5260','secondary text'],['--sign','#F5C400','primary action'],['--link','#1F5FBF','link'],['--ok','#1E7F4F','active'],['--off','#5B6472','inactive'],['--exp','#B4501A','expired'],['--danger','#C62828','danger'],['--bot','#6B4FBB','bot data']];
+    const seg = [['24j','24 hours'],['7h','7 days'],['30h','30 days'],['90h','90 days'],['semua','All']].map(([k,label]) => { const on = this.state.r === k; return { label, shadow: on ? 'var(--inset)' : 'none', fw: on ? 700 : 500, color: on ? 'var(--ink)' : 'var(--ink2)', onClick: () => this.setState({ r: k }) }; });
+    const on = this.state.on;
+    return { tokens: T.map(([name,hex,use]) => ({ name, hex, use })), seg, toggle: () => this.setState({ on: !on }), swOn: on ? 'true' : 'false', swTrack: on ? '#BFDCCB' : 'var(--bg)', swLeft: on ? '32px' : '4px', swText: on ? 'ACTIVE' : 'INACTIVE', swColor: on ? 'var(--ok)' : 'var(--off)' };
+  }
+}
+</script>
+</body>
+</html>
