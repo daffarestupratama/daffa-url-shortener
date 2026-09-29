@@ -1,0 +1,27 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "daffa-redirector",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+
+  // Custom domain, not a route pattern. Cloudflare manages the DNS record.
+  "routes": [{ "pattern": "daffa.me", "custom_domain": true }],
+
+  // src/robots.txt is imported as a string.
+  "rules": [{ "type": "Text", "globs": ["**/*.txt"], "fallthrough": false }],
+
+  "observability": { "enabled": true },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "daffa-links",
+      // Placeholder. Replace after creating the database manually with
+      // `wrangler d1 create daffa-links`. The same id goes in the dashboard config.
+      "database_id": "PLACEHOLDER_REPLACE_AFTER_D1_CREATE",
+      // Migrations live at the repo root and are shared with the dashboard
+      // Worker. Resolved relative to this config file.
+      "migrations_dir": "../../migrations"
+    }
+  ]
+}

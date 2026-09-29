@@ -1,0 +1,28 @@
+{
+  "name": "daffa-url-shortener",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "apps/*"
+  ],
+  "scripts": {
+    "migrate:local": "wrangler d1 migrations apply daffa-links --local --persist-to .wrangler-state -c apps/redirector/wrangler.jsonc",
+    "seed:local": "node scripts/seed.mjs",
+    "dev:redirect": "wrangler dev -c apps/redirector/wrangler.jsonc --persist-to .wrangler-state --port 8787",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "check:pages": "node scripts/check-page-size.mjs",
+    "check:copy": "node scripts/audit-copy.mjs",
+    "check": "npm run typecheck && npm test && npm run check:pages && npm run check:copy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260926.1",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.7.3",
+    "vitest": "^5.0.2",
+    "wrangler": "^4.20.0"
+  }
+}

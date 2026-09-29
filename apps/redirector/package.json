@@ -1,0 +1,10 @@
+{
+  "name": "@daffa/redirector",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@daffa/shared": "*",
+    "hono": "^4.7.0"
+  }
+}
