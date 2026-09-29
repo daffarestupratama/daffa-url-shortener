@@ -1,0 +1,20 @@
+{
+  "name": "@daffa/dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@daffa/shared": "*",
+    "hono": "^4.13.11",
+    "jose": "^6.2.12"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.62.0",
+    "vite": "^8.3.1"
+  }
+}

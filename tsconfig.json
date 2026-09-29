@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["shared/**/*.ts", "apps/redirector/src/**/*.ts"]
+  "include": ["shared/**/*.ts", "apps/redirector/src/**/*.ts", "apps/dashboard/src/worker/**/*.ts"]
 }

@@ -40,6 +40,11 @@ export interface ValidateSlugOptions {
   taken?: readonly SlugOwner[];
 }
 
+/** The conflict message from the design, shared by the form, the API and the availability check. */
+export function slugTakenMessage(ownerTitle: string): string {
+  return `This slug is already used by "${ownerTitle}".`;
+}
+
 /**
  * Returns an error message, or null when the slug is acceptable. The order of
  * the checks and the wording of each message match the design.
@@ -68,7 +73,7 @@ export function validateSlug(slug: string, options: ValidateSlugOptions = {}): s
   }
   const owner = options.taken?.find((candidate) => candidate.slug === slug);
   if (owner) {
-    return `This slug is already used by "${owner.title}".`;
+    return slugTakenMessage(owner.title);
   }
   return null;
 }

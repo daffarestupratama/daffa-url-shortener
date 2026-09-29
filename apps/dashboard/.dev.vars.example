@@ -1,0 +1,10 @@
+# Copy this file to .dev.vars in the same folder. .dev.vars is gitignored.
+# Local development only. Production values are set as Cloudflare secrets.
+
+# Skips Cloudflare Access verification, but only when the request host is
+# localhost or 127.0.0.1. It has no effect on shorten.daffa.me.
+DEV_AUTH_BYPASS=true
+
+# Production Access settings. Not needed while the bypass above is on.
+# ACCESS_TEAM_DOMAIN=your-team.cloudflareaccess.com
+# ACCESS_AUD=your-application-audience-tag

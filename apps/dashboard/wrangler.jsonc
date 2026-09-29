@@ -1,0 +1,38 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "daffa-dashboard",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-01",
+
+  // Custom domain, not a route pattern. Cloudflare manages the DNS record.
+  "routes": [{ "pattern": "shorten.daffa.me", "custom_domain": true }],
+
+  // Only shorten.daffa.me reaches this Worker. No workers.dev subdomain and no
+  // preview URLs, so Cloudflare Access cannot be bypassed through another host.
+  "workers_dev": false,
+  "preview_urls": false,
+
+  // The SPA is served as static assets. Only /api/* runs the Worker, every
+  // other path falls back to index.html. The directory is filled in by
+  // @cloudflare/vite-plugin from the client build output.
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "observability": { "enabled": true },
+
+  // ACCESS_TEAM_DOMAIN and ACCESS_AUD are set as secrets in production, never
+  // here. Locally, .dev.vars enables the development bypass instead.
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "daffa-links",
+      // Must be identical to the redirector config. Locally the D1 file name
+      // is derived from this id, so both Workers share one database.
+      "database_id": "PLACEHOLDER_REPLACE_AFTER_D1_CREATE",
+      "migrations_dir": "../../migrations"
+    }
+  ]
+}

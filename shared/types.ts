@@ -64,3 +64,128 @@ export const RANGE_TEXT: Record<Range, string> = {
   '90d': 'in the last 90 days',
   all: 'since the link was created',
 };
+
+/** Chart bucket size. Hours for 24h, WIB days for 7d to 90d, WIB months for all. */
+export type Bucket = 'hour' | 'day' | 'month';
+
+// Dashboard API contract. Every timestamp is epoch milliseconds, and the client
+// converts to WIB for display.
+
+export type LinkStatusFilter = 'all' | LinkStatus;
+export type LinkSort = 'newest' | 'clicks';
+
+export type ErrorCode =
+  | 'bad_request'
+  | 'invalid_id'
+  | 'invalid_json'
+  | 'invalid_field'
+  | 'invalid_url'
+  | 'invalid_slug'
+  | 'forbidden'
+  | 'csrf_rejected'
+  | 'not_found'
+  | 'slug_taken'
+  | 'payload_too_large'
+  | 'internal'
+  | 'auth_not_configured'
+  | 'database_unavailable';
+
+export interface ApiErrorBody {
+  error: { code: ErrorCode; message: string };
+}
+
+/** Body of POST /api/links and PATCH /api/links/:id. */
+export interface LinkInput {
+  url?: string;
+  slug?: string;
+  title?: string;
+  description?: string;
+  tags?: string[];
+  expiresAt?: number | null;
+  isActive?: boolean;
+}
+
+export interface LinkListItem extends Link {
+  /** Human clicks in the 7 day WIB window. */
+  clicks7d: number;
+}
+
+export interface LinkList {
+  links: LinkListItem[];
+  /** Every saved link, ignoring filters. Zero means the empty state. */
+  total: number;
+}
+
+export interface LinkDetail {
+  link: Link;
+  /** All time totals, shown in the delete confirmation. */
+  totals: { human: number; bot: number };
+}
+
+export interface Summary {
+  total: number;
+  active: number;
+  human7d: number;
+  unique7d: number;
+  top: { id: number; slug: string; title: string; clicks: number } | null;
+  windowStart: number;
+  windowEnd: number;
+}
+
+export interface SlugAvailability {
+  slug: string;
+  available: boolean;
+  code?: 'invalid_slug' | 'slug_taken';
+  message?: string;
+}
+
+export interface SeriesPoint {
+  start: number;
+  human: number;
+  unique: number;
+  bot: number;
+}
+
+export interface Analytics {
+  range: Range;
+  bucket: Bucket;
+  start: number;
+  end: number;
+  totals: { human: number; unique: number; bot: number };
+  allTime: { human: number; lastHumanAt: number | null };
+  series: SeriesPoint[];
+  countries: { country: string | null; count: number }[];
+  cities: { city: string | null; country: string | null; count: number }[];
+  /** Hostname without www, or null for direct visits. */
+  referrers: { host: string | null; count: number }[];
+  colos: { colo: string | null; count: number }[];
+  asns: { asn: number | null; org: string | null; count: number }[];
+  /** Raw user agents with counts. Device, browser, OS and bot names are parsed in the browser. */
+  userAgents: {
+    human: { ua: string; count: number }[];
+    bot: { ua: string; count: number }[];
+  };
+}
+
+export interface ClickRow {
+  id: number;
+  ts: number;
+  ip: string;
+  ua: string;
+  isBot: boolean;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  timezone: string | null;
+  colo: string | null;
+  asn: number | null;
+  asOrg: string | null;
+  referrer: string | null;
+}
+
+export interface ClickLogPage {
+  rows: ClickRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

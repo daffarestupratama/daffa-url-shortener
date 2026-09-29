@@ -8,9 +8,14 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "concurrently -k -n redirect,dashboard -c yellow,cyan \"npm:dev:redirect\" \"npm:dev:dashboard\"",
+    "dev:redirect": "wrangler dev -c apps/redirector/wrangler.jsonc --persist-to .wrangler-state --port 8787",
+    "dev:dashboard": "npm run dev -w @daffa/dashboard",
+    "build:dashboard": "npm run build -w @daffa/dashboard",
     "migrate:local": "wrangler d1 migrations apply daffa-links --local --persist-to .wrangler-state -c apps/redirector/wrangler.jsonc",
     "seed:local": "node scripts/seed.mjs",
-    "dev:redirect": "wrangler dev -c apps/redirector/wrangler.jsonc --persist-to .wrangler-state --port 8787",
+    "smoke": "node scripts/api-smoke.mjs",
+    "explain": "node scripts/explain.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -20,9 +25,13 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260926.1",
+    "concurrently": "^10.0.5",
     "esbuild": "^0.28.0",
     "typescript": "^5.7.3",
     "vitest": "^5.0.2",
-    "wrangler": "^4.20.0"
+    "wrangler": "^4.143.0"
+  },
+  "overrides": {
+    "undici": "7.29.1"
   }
 }
