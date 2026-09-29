@@ -44,6 +44,13 @@ export const COLORS = {
   '--skeleton-1': '#CCD3DC',
   '--skeleton-2': '#D6DCE4',
   '--qr-bg': '#FFFFFF',
+
+  // Overlay scrims, the chart area fill, and text on colored surfaces.
+  '--scrim-form': 'rgba(20,23,28,0.45)',
+  '--scrim-qr': 'rgba(20,23,28,0.5)',
+  '--scrim-delete': 'rgba(20,23,28,0.55)',
+  '--chart-area': 'rgba(20,23,28,0.07)',
+  '--on-color': '#FFFFFF',
 } as const;
 
 /**

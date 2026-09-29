@@ -1,0 +1,26 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px clamp(18px, 3vw, 32px);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px;
+}

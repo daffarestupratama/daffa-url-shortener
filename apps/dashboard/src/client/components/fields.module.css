@@ -1,0 +1,64 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.label {
+  font: 700 15px/1.2 var(--font);
+}
+
+.required { color: var(--danger); }
+.optional { font-weight: 400; color: var(--ink2); }
+
+/* Inputs are inset surfaces. */
+.input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-12);
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px var(--font);
+  box-shadow: var(--inset);
+}
+.mono { font-family: var(--mono); }
+.invalid { border: 2px solid var(--danger); }
+.valid { border: 2px solid var(--ok); }
+
+.textarea {
+  height: auto;
+  padding: 12px 14px;
+  font: 400 15px/1.5 var(--font);
+  resize: vertical;
+}
+
+.help {
+  font: 400 13px/1.45 var(--font);
+  color: var(--ink2);
+}
+
+/* Error and success messages are flat and high contrast. */
+.message {
+  display: flex;
+  gap: 8px;
+  font: 700 14px/1.4 var(--font);
+}
+.messageError { color: var(--danger); }
+.messageOk { color: var(--ok); }
+
+.dot {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--on-color);
+  font-size: 12px;
+}
+.messageError .dot { background: var(--danger); }
+.messageOk .dot { background: var(--ok); font-size: 11px; }

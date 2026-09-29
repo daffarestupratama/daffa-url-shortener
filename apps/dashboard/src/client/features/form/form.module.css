@@ -1,0 +1,264 @@
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px clamp(16px, 3vw, 32px);
+  border-bottom: 1px solid var(--hair);
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kicker {
+  font: 700 11px/1 var(--font);
+  letter-spacing: 0.18em;
+  color: var(--ink2);
+}
+
+.heading {
+  margin: 0;
+  font: 800 22px/1.2 var(--font);
+  overflow-wrap: anywhere;
+}
+
+.body {
+  flex: 1;
+  overflow: auto;
+  padding: 24px clamp(16px, 3vw, 32px);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 28px;
+  align-items: start;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Slug: fixed daffa.me/ prefix inside one inset field. */
+.slugBox {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-12);
+  background: var(--bg);
+  box-shadow: var(--inset);
+}
+.slugInvalid { border: 2px solid var(--danger); }
+.slugValid { border: 2px solid var(--ok); }
+
+.slugPrefix {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 10px 0 14px;
+  border-right: 1px solid var(--hair);
+  font: 500 15px var(--mono);
+  color: var(--ink2);
+}
+
+.slugInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 700 15px var(--mono);
+  outline-offset: -3px;
+}
+
+.sideButton {
+  height: 48px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.expiry {
+  flex: 1 1 220px;
+  font-family: var(--mono);
+}
+
+/* Tags: dark removable chips inside an inset field. */
+.tagBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-12);
+  background: var(--bg);
+  box-shadow: var(--inset);
+}
+
+.tagInput {
+  flex: 1 1 140px;
+  min-width: 120px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 15px var(--font);
+  outline-offset: 2px;
+}
+
+.suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.suggestLabel {
+  font: 400 13px var(--font);
+  color: var(--ink2);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--hair);
+}
+
+.statusText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statusLabel { font: 700 15px/1.2 var(--font); }
+
+.statusHelp {
+  font: 400 13px/1.4 var(--font);
+  color: var(--ink2);
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.switchText {
+  font: 800 12px/1 var(--font);
+  letter-spacing: 0.14em;
+}
+
+/* Preview column */
+
+.preview {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.previewTitle {
+  font: 700 12px/1 var(--font);
+  letter-spacing: 0.16em;
+  color: var(--ink2);
+}
+
+.previewCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  border-radius: var(--r-16);
+  background: var(--bg);
+  box-shadow: var(--raise-lg);
+}
+
+.previewDest {
+  font: 400 14px/1.4 var(--mono);
+  color: var(--link);
+  overflow-wrap: anywhere;
+}
+
+.previewStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.previewExp {
+  font: 400 13px/1.3 var(--font);
+  color: var(--ink2);
+}
+
+.qrBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--r-10);
+  background: var(--qr-bg);
+}
+
+.qrLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 160px;
+  font: 500 13px var(--font);
+  color: var(--ink2);
+}
+
+.qrText {
+  font: 500 12px/1.3 var(--mono);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+/* Footer */
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 16px clamp(16px, 3vw, 32px);
+  border-top: 1px solid var(--hair);
+  background: var(--bg);
+}
+
+.spacer { flex: 1; }
+
+.footerError {
+  font: 700 14px/1.3 var(--font);
+  color: var(--danger);
+}
+
+.save { font-size: 15px; }

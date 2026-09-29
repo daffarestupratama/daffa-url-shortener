@@ -31,7 +31,7 @@ function visibleText(html) {
 
 async function sourceFiles(dir, out = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+    if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name.startsWith('.')) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) await sourceFiles(full, out);
     else if (/\.(ts|tsx|css)$/.test(entry.name)) out.push(full);
@@ -74,11 +74,61 @@ for (const dir of ['shared', 'apps', 'scripts']) {
   }
 }
 
+// Pass three: dashboard UI text. Parsed with the TypeScript compiler so only
+// real copy is checked: JSX text, and string or template literals that read
+// as prose (they contain a space). Code, class names and URLs are not prose.
+const ts = (await import('typescript')).default;
+const FIRST_PERSON = /\b(I|me|my|mine|we|us|our|ours)\b/;
+const FIRST_PERSON_LOWER = /\b(me|my|mine|we|us|our|ours)\b/i;
+let uiStrings = 0;
+
+function checkCopy(text, where) {
+  const trimmed = text.replace(/\s+/g, ' ').trim();
+  if (!trimmed || !/[A-Za-z]/.test(trimmed)) return;
+  uiStrings += 1;
+  if (trimmed.includes(';')) problems.push(`${where} contains a semicolon: "${trimmed}"`);
+  // Domains and paths are not words: the "me" in daffa.me is a TLD, not a pronoun.
+  const words = trimmed.replace(/\S*\w\.\w\S*/g, ' ');
+  if (FIRST_PERSON.test(words) || FIRST_PERSON_LOWER.test(words)) {
+    problems.push(`${where} uses a first person pronoun: "${trimmed}"`);
+  }
+}
+
+let clientFiles = [];
+try {
+  clientFiles = (await sourceFiles(path.join(ROOT, 'apps/dashboard/src/client'))).filter(
+    (file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file),
+  );
+} catch {
+  clientFiles = [];
+}
+
+for (const file of clientFiles) {
+  const body = await readFile(file, 'utf8');
+  const source = ts.createSourceFile(file, body, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  const relative = path.relative(ROOT, file);
+  const visit = (node) => {
+    const line = source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+    const where = `${relative}:${line}`;
+    if (ts.isJsxText(node)) {
+      checkCopy(node.text, where);
+    } else if (
+      (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) &&
+      !ts.isImportDeclaration(node.parent) &&
+      /\s/.test(node.text)
+    ) {
+      checkCopy(node.text, where);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+}
+
 if (problems.length > 0) {
   console.error('Copy audit failed:\n');
   for (const problem of problems) console.error(`  ${problem}`);
   process.exit(1);
 }
 
-console.log(`Copy audit passed. Checked ${RENDERED.length} rendered pages and all source files.`);
-console.log('No em dashes, no en dashes, no semicolons in UI text.');
+console.log(`Copy audit passed. Checked ${RENDERED.length} rendered pages, all source files, and ${uiStrings} dashboard UI strings.`);
+console.log('No em dashes, no en dashes, no semicolons in UI text, no first person pronouns.');

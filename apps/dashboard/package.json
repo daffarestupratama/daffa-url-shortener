@@ -10,11 +10,20 @@
   },
   "dependencies": {
     "@daffa/shared": "*",
+    "@fontsource/atkinson-hyperlegible-mono": "^5.3.0",
+    "@fontsource/atkinson-hyperlegible-next": "^5.3.0",
+    "country-flag-icons": "^1.6.20",
     "hono": "^4.13.11",
-    "jose": "^6.2.12"
+    "jose": "^6.2.12",
+    "qrcode-generator": "^2.0.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.62.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "vite": "^8.3.1"
   }
 }

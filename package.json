@@ -16,12 +16,15 @@
     "seed:local": "node scripts/seed.mjs",
     "smoke": "node scripts/api-smoke.mjs",
     "explain": "node scripts/explain.mjs",
+    "db:counts": "node scripts/db-counts.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/dashboard",
     "check:pages": "node scripts/check-page-size.mjs",
     "check:copy": "node scripts/audit-copy.mjs",
-    "check": "npm run typecheck && npm test && npm run check:pages && npm run check:copy"
+    "check:tokens": "node scripts/audit-tokens.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "check": "npm run typecheck && npm test && npm run check:pages && npm run check:copy && npm run check:tokens"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260926.1",

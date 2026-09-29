@@ -122,8 +122,8 @@ const REFERRERS = [
  * long slug so truncation can be checked.
  */
 const LINKS = [
-  { slug: 'cv', url: 'https://www.linkedin.com/in/daffarestupratama', title: 'CV and LinkedIn profile', description: 'Main link on business cards and email signature.', tags: ['career'], active: true, createdDaysAgo: 199, expiresInDays: null, clicks: 180 },
-  { slug: 'porto-2026', url: 'https://daffarestupratama.com/portofolio/2026', title: 'Portfolio 2026', description: 'Data analysis and software engineering projects from 2026.', tags: ['career', 'portfolio'], active: true, createdDaysAgo: 265, expiresInDays: 94, clicks: 110 },
+  { slug: 'cv', url: 'https://www.linkedin.com/in/daffarestupratama', title: 'CV and LinkedIn profile', description: 'Main link on business cards and email signature.', tags: ['career'], active: true, createdDaysAgo: 199, expiresInDays: null, clicks: 180, spike: { daysAgo: 13, extra: 30, referrer: 'https://www.linkedin.com/' } },
+  { slug: 'porto-2026', url: 'https://daffarestupratama.com/portofolio/2026', title: 'Portfolio 2026', description: 'Data analysis and software engineering projects from 2026.', tags: ['career', 'portfolio'], active: true, createdDaysAgo: 265, expiresInDays: 94, clicks: 110, spike: { daysAgo: 55, extra: 20, referrer: 'https://www.kaggle.com/' } },
   { slug: 'wa', url: 'https://wa.me/6281234567890?text=Halo%20Daffa', title: 'WhatsApp contact', description: 'Opens a WhatsApp chat with a greeting message.', tags: ['contact'], active: true, createdDaysAgo: 238, expiresInDays: null, clicks: 80 },
   { slug: 'kaggle', url: 'https://www.kaggle.com/daffarestupratama', title: 'Kaggle profile', description: 'Notebooks and past competitions.', tags: ['data'], active: true, createdDaysAgo: 163, expiresInDays: null, clicks: 45 },
   { slug: 'gh', url: 'https://github.com/daffarestupratama', title: 'GitHub repositories', description: 'Source code for personal projects.', tags: ['code'], active: true, createdDaysAgo: 211, expiresInDays: null, clicks: 50 },
@@ -175,28 +175,43 @@ function buildClicks(link, linkId) {
     const ts = dayStart + pickHour(rand) * 60 * 60 * 1000 + Math.floor(rand() * 60 * 60 * 1000);
     if (ts < start || ts > end) continue;
 
-    const isBot = rand() < BOT_SHARE;
-    const source = isBot ? weightedPick(BOT_SOURCES, rand) : weightedPick(NETWORKS, rand);
-    const ua = isBot ? source.ua : weightedPick(HUMAN_UAS, rand).ua;
-    const referrer = isBot ? null : weightedPick(REFERRERS, rand).value;
+    rows.push(clickRow(linkId, ts, rand));
+  }
 
-    rows.push({
-      linkId,
-      ts,
-      ip: fillIp(source.ip, rand),
-      ua,
-      isBot: isBot ? 1 : 0,
-      country: source.country,
-      region: source.region,
-      city: source.city,
-      tz: source.tz,
-      colo: source.colo,
-      asn: source.asn,
-      org: source.org,
-      referrer,
-    });
+  // One day of extra traffic, like the spikes in the design prototype, so the
+  // chart's peak annotation shows on real data. Its own PRNG stream, a fixed
+  // day offset and a fixed count keep every run identical.
+  if (link.spike) {
+    const spikeRand = rng(hash(`${link.slug}:spike`));
+    const spikeDay = wibDayStart(NOW - link.spike.daysAgo * DAY);
+    for (let i = 0; i < link.spike.extra; i += 1) {
+      const ts = spikeDay + pickHour(spikeRand) * 60 * 60 * 1000 + Math.floor(spikeRand() * 60 * 60 * 1000);
+      rows.push(clickRow(linkId, ts, spikeRand, link.spike.referrer));
+    }
   }
   return rows;
+}
+
+function clickRow(linkId, ts, rand, referrerOverride) {
+  const isBot = rand() < BOT_SHARE;
+  const source = isBot ? weightedPick(BOT_SOURCES, rand) : weightedPick(NETWORKS, rand);
+  const ua = isBot ? source.ua : weightedPick(HUMAN_UAS, rand).ua;
+  const referrer = isBot ? null : (referrerOverride ?? weightedPick(REFERRERS, rand).value);
+  return {
+    linkId,
+    ts,
+    ip: fillIp(source.ip, rand),
+    ua,
+    isBot: isBot ? 1 : 0,
+    country: source.country,
+    region: source.region,
+    city: source.city,
+    tz: source.tz,
+    colo: source.colo,
+    asn: source.asn,
+    org: source.org,
+    referrer,
+  };
 }
 
 const quote = (value) =>

@@ -1,0 +1,107 @@
+/* QR modal ----------------------------------------------------------------- */
+
+.qrDialog {
+  width: min(440px, 100%);
+  gap: 18px;
+  padding: 24px;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kicker {
+  font: 700 11px/1 var(--font);
+  letter-spacing: 0.18em;
+  color: var(--ink2);
+}
+
+.qrTitle {
+  margin: 0;
+  font: 800 20px/1.25 var(--font);
+}
+
+.qrBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px;
+  border-radius: var(--r-12);
+  background: var(--qr-bg);
+}
+
+.qrSvg {
+  max-width: 100%;
+  height: auto;
+}
+
+.qrLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 240px;
+  height: 240px;
+  max-width: 100%;
+  font: 500 14px var(--font);
+  color: var(--ink2);
+}
+
+.qrNote {
+  margin: 0;
+  font: 400 14px/1.55 var(--font);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.downloads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.downloads > button { padding: 0; font-size: 15px; }
+
+/* Delete confirmation ------------------------------------------------------ */
+
+.deleteDialog {
+  width: min(480px, 100%);
+  gap: 16px;
+  padding: 26px;
+}
+
+.badgeStart { align-self: flex-start; }
+
+.deleteTitle {
+  margin: 0;
+  font: 800 22px/1.25 var(--font);
+}
+
+.deleteText {
+  margin: 0;
+  font: 400 15px/1.55 var(--font);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.deleteActions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.error {
+  margin: 0;
+  font: 700 14px/1.4 var(--font);
+  color: var(--danger);
+}
