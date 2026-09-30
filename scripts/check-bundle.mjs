@@ -13,6 +13,7 @@ import { ROOT } from './bundle.mjs';
  *   3. _headers exists and forbids framing.
  *   4. Flags are separate files, not inlined into JavaScript.
  *   5. Reports raw and gzip sizes, split into the initial load and lazy chunks.
+ *   6. The favicons are present: favicon.svg, favicon.ico, apple-touch-icon.png.
  */
 
 const DIST = path.join(ROOT, 'apps/dashboard/dist/client');
@@ -83,6 +84,21 @@ const inlined = js.filter((file) => contents.get(file).includes('data:image/svg+
 if (inlined.length) fail(`SVG data URIs inlined into ${inlined.map((f) => path.basename(f)).join(', ')}`);
 else pass('flags are separate files, none inlined into JavaScript');
 
+// 6: favicons ship as real files, so /favicon.ico never falls through to index.html.
+const FAVICONS = ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'];
+const missingIcons = FAVICONS.filter((name) => !existsSync(path.join(DIST, name)));
+if (missingIcons.length) {
+  fail(`favicon files missing from dist/client: ${missingIcons.join(', ')}`);
+} else {
+  const icoBytes = await readFile(path.join(DIST, 'favicon.ico'));
+  const touch = await readFile(path.join(DIST, 'apple-touch-icon.png'));
+  const isIco = icoBytes.readUInt32LE(0) === 0x00010000;
+  const touchSize = `${touch.readUInt32BE(16)}x${touch.readUInt32BE(20)}`;
+  if (!isIco) fail('favicon.ico is not an ICO file');
+  else if (touchSize !== '180x180') fail(`apple-touch-icon.png is ${touchSize}, expected 180x180`);
+  else pass('favicon.svg, favicon.ico and a 180x180 apple-touch-icon.png are present');
+}
+
 // 5: sizes.
 const html = contents.get(path.join(DIST, 'index.html')) ?? '';
 const initialNames = new Set([...html.matchAll(/(?:src|href)="\/?(assets\/[^"]+\.(?:js|css))"/g)].map((m) => m[1]));
@@ -105,7 +121,7 @@ for (const file of all.filter((f) => /\.(js|css)$/.test(f)).sort()) {
 }
 
 const fonts = all.filter((f) => f.endsWith('.woff2'));
-const flags = all.filter((f) => f.endsWith('.svg'));
+const flags = all.filter((f) => f.endsWith('.svg') && path.basename(f) !== 'favicon.svg');
 const size = async (list) => (await Promise.all(list.map((f) => stat(f)))).reduce((sum, s) => sum + s.size, 0);
 
 console.log('Production client build checks\n');
