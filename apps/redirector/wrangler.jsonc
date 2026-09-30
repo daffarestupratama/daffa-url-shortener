@@ -18,7 +18,7 @@
       "database_name": "daffa-links",
       // Placeholder. Replace after creating the database manually with
       // `wrangler d1 create daffa-links`. The same id goes in the dashboard config.
-      "database_id": "PLACEHOLDER_REPLACE_AFTER_D1_CREATE",
+      "database_id": "c2d42ed4-b18e-438c-b1e1-997c3b5bce28",
       // Migrations live at the repo root and are shared with the dashboard
       // Worker. Resolved relative to this config file.
       "migrations_dir": "../../migrations"

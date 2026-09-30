@@ -31,7 +31,7 @@
       "database_name": "daffa-links",
       // Must be identical to the redirector config. Locally the D1 file name
       // is derived from this id, so both Workers share one database.
-      "database_id": "PLACEHOLDER_REPLACE_AFTER_D1_CREATE",
+      "database_id": "c2d42ed4-b18e-438c-b1e1-997c3b5bce28",
       "migrations_dir": "../../migrations"
     }
   ]
