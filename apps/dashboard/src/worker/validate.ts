@@ -73,7 +73,7 @@ export interface ListQuery {
 }
 
 const STATUSES: readonly LinkStatusFilter[] = ['all', 'active', 'inactive', 'expired'];
-const SORTS: readonly LinkSort[] = ['newest', 'clicks'];
+const SORTS: readonly LinkSort[] = ['newest', 'oldest', 'clicks', 'least'];
 
 export function parseListQuery(query: Record<string, string | undefined>): ListQuery {
   const q = (query.q ?? '').trim().toLowerCase();
@@ -96,7 +96,7 @@ export function parseListQuery(query: Record<string, string | undefined>): ListQ
 
   const sort = (query.sort ?? 'newest') as LinkSort;
   if (!SORTS.includes(sort)) {
-    throw new ApiError('bad_request', 'The sort order must be newest or clicks.');
+    throw new ApiError('bad_request', 'The sort order must be newest, oldest, clicks, or least.');
   }
 
   return { q: q || null, tag: tag || null, status, sort };

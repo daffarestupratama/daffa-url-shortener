@@ -83,9 +83,17 @@ describe('parseListQuery', () => {
     expect(parseListQuery({ q: '  KaGGle ', tag: '#Career' })).toMatchObject({ q: 'kaggle', tag: 'career' });
   });
 
+  it('accepts every sort order', () => {
+    for (const sort of ['newest', 'oldest', 'clicks', 'least'] as const) {
+      expect(parseListQuery({ sort }).sort).toBe(sort);
+    }
+  });
+
   it('rejects an unknown status or sort', () => {
     expect(apiError(() => parseListQuery({ status: 'aktif' })).code).toBe('bad_request');
-    expect(apiError(() => parseListQuery({ sort: 'oldest' })).code).toBe('bad_request');
+    for (const sort of ['popular', 'Oldest', 'least-clicks']) {
+      expect(apiError(() => parseListQuery({ sort })).code, sort).toBe('bad_request');
+    }
   });
 
   it('rejects an overlong search', () => {

@@ -1,9 +1,12 @@
 /* QR modal ----------------------------------------------------------------- */
 
+/* overflow-wrap is inherited, so a long unbroken word in the title, the note
+   or the buttons wraps instead of scrolling the modal sideways. */
 .qrDialog {
   width: min(440px, 100%);
   gap: 18px;
   padding: 24px;
+  overflow-wrap: anywhere;
 }
 
 .head {
@@ -15,8 +18,10 @@
 
 .headText {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .kicker {
@@ -38,6 +43,12 @@
   padding: 24px;
   border-radius: var(--r-12);
   background: var(--qr-bg);
+}
+
+/* The short URL wraps onto more lines, never an ellipsis. */
+.qrUrl {
+  max-width: 100%;
+  text-align: center;
 }
 
 .qrSvg {
@@ -63,12 +74,22 @@
   text-wrap: pretty;
 }
 
+/* minmax(0, 1fr) keeps the label's width from widening the grid. Labels that
+   do not fit wrap and center, and the row stretch keeps both buttons equal. */
 .downloads {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-.downloads > button { padding: 0; font-size: 15px; }
+.downloads > button {
+  height: auto;
+  min-height: 48px;
+  padding: 8px 12px;
+  font-size: 15px;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
+}
 
 /* Delete confirmation ------------------------------------------------------ */
 

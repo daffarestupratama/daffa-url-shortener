@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, SegmentedControl } from '../../components/controls';
 import { SearchIcon } from '../../components/Icons';
 import { KpiCard, Panel, PanelHeader, Skeleton } from '../../components/surfaces';
-import { Badge, GateTile, Kicker } from '../../components/tiles';
+import { Badge, GateTile } from '../../components/tiles';
 import { api, ApiError } from '../../lib/api';
 import { formatDateRange, formatNumber } from '../../lib/format';
 import { applyListOverlay, listFlags } from '../../lib/preview';
@@ -25,7 +25,9 @@ const STATUS_KEYS = STATUSES.map(([key]) => key);
 
 const SORTS: ReadonlyArray<readonly [LinkSort, string]> = [
   ['newest', 'Sort: Newest'],
+  ['oldest', 'Sort: Oldest'],
   ['clicks', 'Sort: Most clicks'],
+  ['least', 'Sort: Least clicks'],
 ];
 const SORT_KEYS = SORTS.map(([key]) => key);
 
@@ -104,8 +106,10 @@ export function LinksPage() {
     <>
       <div className={styles.pageHead}>
         <div className={styles.titleBlock}>
-          <Kicker>LINKS</Kicker>
-          <h1 className={styles.h1}>Links</h1>
+          <h1 className={styles.h1}>
+            <span className={styles.h1Marker} aria-hidden="true" />
+            Links
+          </h1>
           <p className={styles.lede}>All short links on daffa.me with a summary of clicks over the last 7 days.</p>
         </div>
         <Button variant="primary" onClick={() => app.openCreate()}>

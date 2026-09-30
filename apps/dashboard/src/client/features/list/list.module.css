@@ -13,9 +13,24 @@
 }
 
 .h1 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
   margin: 0;
   font: 800 clamp(26px, 3vw, 34px)/1.1 var(--font);
   letter-spacing: -0.01em;
+}
+
+/* Decorative square, as tall as the capital letters. An empty flex item's
+   baseline is its bottom edge, so it sits on the text baseline. */
+.h1Marker {
+  flex: none;
+  width: 0.7em;
+  height: 0.7em;
+  width: 1cap;
+  height: 1cap;
+  border: 2px solid var(--ink);
+  background: var(--sign);
 }
 
 .lede {
@@ -151,12 +166,24 @@
 .row:hover { background: var(--bg-hover); }
 .row:last-child:hover { border-radius: 0 0 var(--r-16) var(--r-16); }
 
+/* Status, slug and expiry stacked in one fixed width column: the widest tile
+   (220) plus the gap and the copy button, so the info column starts at the
+   same x on every row. It only shrinks when it sits alone on a narrow line. */
 .slugCell {
   display: flex;
-  flex: none;
+  flex: 0 1 264px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* max-width lets the tile shrink toward its min-width and keep the ellipsis. */
+.slugLine {
+  display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 196px;
+  max-width: 100%;
 }
 
 .info {
@@ -195,9 +222,10 @@
 .clicks {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   gap: 4px;
   min-width: 84px;
+  text-align: center;
 }
 
 .clicksValue {
@@ -208,14 +236,6 @@
 .clicksLabel {
   font: 400 12px/1.2 var(--font);
   color: var(--ink2);
-}
-
-.statusCell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  min-width: 150px;
 }
 
 .expiry {

@@ -67,7 +67,7 @@ export function QrModal({ link, onClose }: { link: LinkRef; onClose: () => void 
         ) : (
           <div className={styles.qrLoading}>Loading QR</div>
         )}
-        <GateTile slug={link.slug} variant="qr" prefix="domain" />
+        <GateTile slug={link.slug} variant="qr" prefix="domain" className={styles.qrUrl} />
       </div>
       <p className={styles.qrNote}>
         The QR code contains the short address daffa.me/{link.slug}, not the destination URL. Printed codes keep

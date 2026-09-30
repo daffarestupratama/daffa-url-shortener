@@ -64,10 +64,14 @@ export function LinkRow({ link, defaultMenuOpen = false }: LinkRowProps) {
   return (
     <div className={styles.row}>
       <div className={styles.slugCell}>
-        <GateTile slug={link.slug} variant="row" />
-        <IconButton size={36} label={copied ? `Copied daffa.me/${link.slug}` : `Copy daffa.me/${link.slug}`} onClick={copy}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
-        </IconButton>
+        <StatusBadge status={link.status} />
+        <div className={styles.slugLine}>
+          <GateTile slug={link.slug} variant="row" />
+          <IconButton size={36} label={copied ? `Copied daffa.me/${link.slug}` : `Copy daffa.me/${link.slug}`} onClick={copy}>
+            {copied ? <CheckIcon /> : <CopyIcon />}
+          </IconButton>
+        </div>
+        <span className={styles.expiry}>{expiryText(link)}</span>
       </div>
 
       <div className={styles.info}>
@@ -89,11 +93,6 @@ export function LinkRow({ link, defaultMenuOpen = false }: LinkRowProps) {
       <div className={styles.clicks}>
         <span className={styles.clicksValue}>{formatNumber(link.clicks7d)}</span>
         <span className={styles.clicksLabel}>clicks</span>
-      </div>
-
-      <div className={styles.statusCell}>
-        <StatusBadge status={link.status} />
-        <span className={styles.expiry}>{expiryText(link)}</span>
       </div>
 
       <div className={styles.actions} ref={actions}>

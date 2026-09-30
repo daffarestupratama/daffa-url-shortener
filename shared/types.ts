@@ -72,7 +72,7 @@ export type Bucket = 'hour' | 'day' | 'month';
 // converts to WIB for display.
 
 export type LinkStatusFilter = 'all' | LinkStatus;
-export type LinkSort = 'newest' | 'clicks';
+export type LinkSort = 'newest' | 'oldest' | 'clicks' | 'least';
 
 export type ErrorCode =
   | 'bad_request'

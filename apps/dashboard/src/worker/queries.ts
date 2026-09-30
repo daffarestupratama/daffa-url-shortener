@@ -45,7 +45,12 @@ export const LINK_CREATED = 'SELECT id, created_at FROM links WHERE id = ?1';
  * parameters, never string concatenation.
  *
  * ?1 now, ?2 7 day window start, ?3 LIKE pattern or NULL, ?4 tag or NULL,
- * ?5 status ('all' | 'active' | 'inactive' | 'expired'), ?6 sort ('newest' | 'clicks')
+ * ?5 status ('all' | 'active' | 'inactive' | 'expired'),
+ * ?6 sort ('newest' | 'oldest' | 'clicks' | 'least')
+ *
+ * Each sort owns one CASE term. The others evaluate to NULL for every row and
+ * drop out, so one static statement covers all four. Click sorts break ties
+ * newest first.
  */
 export const LIST_LINKS = `SELECT ${LINK_COLUMNS}, ${TAGS_JSON},
   (SELECT COUNT(*) FROM clicks c
@@ -58,7 +63,11 @@ WHERE (?3 IS NULL OR l.slug LIKE ?3 ESCAPE '\\'
         SELECT 1 FROM link_tags lt JOIN tags t ON t.id = lt.tag_id
         WHERE lt.link_id = l.id AND t.name = ?4))
   AND (?5 = 'all' OR ${statusSql('?1')} = ?5)
-ORDER BY CASE WHEN ?6 = 'clicks' THEN clicks7d END DESC, l.created_at DESC, l.id DESC`;
+ORDER BY CASE WHEN ?6 = 'clicks' THEN clicks7d END DESC,
+         CASE WHEN ?6 = 'least' THEN clicks7d END ASC,
+         CASE WHEN ?6 = 'oldest' THEN l.created_at END ASC,
+         CASE WHEN ?6 = 'oldest' THEN l.id END ASC,
+         l.created_at DESC, l.id DESC`;
 
 /** Every saved link, ignoring filters. Separates the empty state from no results. */
 export const COUNT_LINKS = 'SELECT COUNT(*) AS total FROM links';
@@ -257,6 +266,18 @@ export const EXPLAIN_CASES: ExplainCase[] = [
     name: 'links list, no filters',
     sql: LIST_LINKS,
     params: [SAMPLE_NOW, SAMPLE_START, null, null, 'all', 'newest'],
+    readsClicks: true,
+  },
+  {
+    name: 'links list, oldest first',
+    sql: LIST_LINKS,
+    params: [SAMPLE_NOW, SAMPLE_START, null, null, 'all', 'oldest'],
+    readsClicks: true,
+  },
+  {
+    name: 'links list, least clicks',
+    sql: LIST_LINKS,
+    params: [SAMPLE_NOW, SAMPLE_START, null, null, 'all', 'least'],
     readsClicks: true,
   },
   { name: 'link detail', sql: LINK_BY_ID, params: [1], readsClicks: false },

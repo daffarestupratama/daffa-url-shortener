@@ -119,7 +119,9 @@ const REFERRERS = [
  * Ten links covering every status: active with and without tags, active with
  * and without an expiry date, inactive, and expired. `jadwal` deliberately has
  * no clicks so the analytics empty state can be checked, and the last one has a
- * long slug so truncation can be checked.
+ * long slug so truncation can be checked. Its title and description also carry
+ * a very long unbroken word and a long URL, so wrapping in the QR modal and on
+ * the detail page can be checked.
  */
 const LINKS = [
   { slug: 'cv', url: 'https://www.linkedin.com/in/daffarestupratama', title: 'CV and LinkedIn profile', description: 'Main link on business cards and email signature.', tags: ['career'], active: true, createdDaysAgo: 199, expiresInDays: null, clicks: 180, spike: { daysAgo: 13, extra: 30, referrer: 'https://www.linkedin.com/' } },
@@ -131,7 +133,7 @@ const LINKS = [
   { slug: 'slide-pydata', url: 'https://speakerdeck.com/daffarestupratama/pydata-jakarta-2026', title: 'PyData Jakarta slides', description: 'Talk slides from the PyData Jakarta meetup.', tags: ['event', 'data'], active: false, createdDaysAgo: 129, expiresInDays: null, deactivatedDaysAgo: 18, clicks: 30 },
   { slug: 'resume-en', url: 'https://drive.google.com/file/d/1aB9xZqR7tLmN4/view', title: 'English resume', description: 'PDF for international applications.', tags: ['career'], active: true, createdDaysAgo: 8, expiresInDays: 17, clicks: 22 },
   { slug: 'jadwal', url: 'https://calendar.app.google/Rk2nVx8QpLm', title: 'Schedule a meeting', description: 'Booking page for a 30 minute call.', tags: ['contact'], active: true, createdDaysAgo: 1, expiresInDays: null, clicks: 0 },
-  { slug: 'data-workshop-materials-for-the-jakarta-meetup-2026', url: 'https://drive.google.com/drive/folders/1WkSh0pM4t3r14ls', title: 'Data workshop materials', description: '', tags: [], active: true, createdDaysAgo: 41, expiresInDays: null, clicks: 28 },
+  { slug: 'data-workshop-materials-for-the-jakarta-meetup-2026', url: 'https://drive.google.com/drive/folders/1WkSh0pM4t3r14ls', title: 'Data workshop materials JakartaMeetupNotebooksDatasetsAndSlidesArchiveForEveryAttendee2026', description: 'Mirror of WorkshopNotebooksPandasScikitLearnAndVisualizationExercisesWithSolutions at https://drive.google.com/drive/folders/1WkSh0pM4t3r14ls/jakarta-meetup-2026/notebooks-and-datasets?usp=sharing&resourcekey=0-AbCdEfGhIjKlMnOpQrStUv for attendees.', tags: [], active: true, createdDaysAgo: 41, expiresInDays: null, clicks: 28 },
 ];
 
 /** Start of a WIB calendar day, expressed as an epoch value. */

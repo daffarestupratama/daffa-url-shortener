@@ -169,9 +169,29 @@ async function main() {
   const counts = (byClicks.json?.links ?? []).map((l) => l.clicks7d);
   check('sort=clicks orders by 7 day clicks, highest first', counts.every((n, i) => i === 0 || counts[i - 1] >= n));
 
+  const byOldest = await api('GET', '/api/links?sort=oldest');
+  const createdTimes = (byOldest.json?.links ?? []).map((l) => l.createdAt);
+  check(
+    'sort=oldest orders by creation date, oldest first',
+    byOldest.status === 200 && createdTimes.length === links.length && createdTimes.every((t, i) => i === 0 || createdTimes[i - 1] <= t),
+  );
+
+  const byLeast = await api('GET', '/api/links?sort=least');
+  const least = byLeast.json?.links ?? [];
+  check(
+    'sort=least orders by 7 day clicks, lowest first, ties newest first',
+    byLeast.status === 200 &&
+      least.length === links.length &&
+      least.every((l, i) => {
+        if (i === 0) return true;
+        const prev = least[i - 1];
+        return prev.clicks7d < l.clicks7d || (prev.clicks7d === l.clicks7d && prev.createdAt >= l.createdAt);
+      }),
+  );
+
   const badStatus = await api('GET', '/api/links?status=aktif');
   check('an unknown status is a 400', badStatus.status === 400 && errorCode(badStatus) === 'bad_request');
-  const badSort = await api('GET', '/api/links?sort=oldest');
+  const badSort = await api('GET', '/api/links?sort=popular');
   check('an unknown sort is a 400', badSort.status === 400 && errorCode(badSort) === 'bad_request');
 
   // Create -----------------------------------------------------------------
