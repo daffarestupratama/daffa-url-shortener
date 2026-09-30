@@ -208,7 +208,7 @@ function AnalyticsSection({ link, range, page, onPage, analytics, forceEmpty, fo
             NO ARRIVALS YET
           </Badge>
           <h2 className={styles.h2}>This link has not been clicked yet</h2>
-          <p className={styles.stateText}>
+          <p className={cx(styles.stateText, styles.stateTextUrl)}>
             Charts, location rankings, network data, and the click log will appear after daffa.me/{link.slug} is
             opened for the first time.
           </p>

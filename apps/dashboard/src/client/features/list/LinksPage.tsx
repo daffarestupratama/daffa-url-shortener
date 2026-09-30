@@ -218,15 +218,27 @@ function LoadingPanel() {
     <Panel aria-busy="true" aria-label="Loading links">
       <PanelHeader>LOADING LINKS</PanelHeader>
       {[1, 2, 3, 4, 5].map((n) => (
+        // Same columns and heights as LinkRow, so nothing moves when rows arrive.
         <div key={n} className={styles.skeletonRow}>
-          <Skeleton width={120} height={36} radius={8} />
+          <span className={styles.slugCell}>
+            <Skeleton width={64} height={23} />
+            <span className={styles.slugLine}>
+              <Skeleton width={144} height={36} radius={8} />
+              <Skeleton width={36} height={36} radius={10} tone={2} />
+            </span>
+            <Skeleton width={110} height={16} tone={2} />
+          </span>
           <span className={styles.skeletonText}>
             <Skeleton width="45%" height={14} />
             <Skeleton width="75%" height={12} tone={2} />
           </span>
-          <Skeleton width={70} height={24} />
-          <Skeleton width={90} height={24} tone={2} />
-          <Skeleton width={170} height={40} radius={12} tone={2} />
+          <span className={styles.clicks}>
+            <Skeleton width={44} height={24} />
+            <Skeleton width={36} height={12} tone={2} />
+          </span>
+          <span className={styles.actions}>
+            <Skeleton width={184} height={40} radius={12} tone={2} />
+          </span>
         </div>
       ))}
     </Panel>

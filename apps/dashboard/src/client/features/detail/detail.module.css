@@ -118,6 +118,8 @@
   color: var(--ink2);
   text-wrap: pretty;
 }
+/* Only for state text that prints daffa.me/{slug}. */
+.stateTextUrl { overflow-wrap: anywhere; }
 
 .stateButtons {
   display: flex;
@@ -355,6 +357,8 @@
   font: 400 14px/1.55 var(--font);
   color: var(--ink);
   text-wrap: pretty;
+  /* A long daffa.me/{slug} wraps instead of widening the panel. */
+  overflow-wrap: anywhere;
 }
 
 /* Click log */

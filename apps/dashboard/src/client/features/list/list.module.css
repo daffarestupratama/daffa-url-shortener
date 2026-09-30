@@ -140,17 +140,18 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px 24px;
-  padding: 22px;
+  gap: 14px 24px;
+  padding: 18px 22px;
   border-bottom: 1px solid var(--hair);
 }
 .skeletonRow:last-child { border-bottom: 0; }
 
 .skeletonText {
   display: flex;
-  flex: 1 1 280px;
+  flex: 1 1 300px;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 /* Rows */
