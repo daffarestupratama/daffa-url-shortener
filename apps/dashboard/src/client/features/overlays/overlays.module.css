@@ -104,6 +104,7 @@
 .deleteTitle {
   margin: 0;
   font: 800 22px/1.25 var(--font);
+  overflow-wrap: anywhere;
 }
 
 .deleteText {
