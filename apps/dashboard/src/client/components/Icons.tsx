@@ -65,6 +65,16 @@ export function KebabIcon() {
   );
 }
 
+/** The circle with a slash on the Blocked Domains button. */
+export function BlockIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="8" cy="8" r="6" />
+      <path d="M3.8 12.2l8.4-8.4" />
+    </svg>
+  );
+}
+
 /** Replaces the design's globe emoji on the "Other" country row, which renders inconsistently. */
 export function GlobeIcon() {
   return (

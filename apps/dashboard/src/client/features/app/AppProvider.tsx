@@ -1,6 +1,7 @@
 import type { Link } from '@daffa/shared';
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { ToastView } from '../../components/overlay';
+import { useToast, type ToastFn } from '../../lib/toast';
 import { DeleteDialog } from '../overlays/DeleteDialog';
 import { LinkFormDrawer, type FormSeed } from '../form/LinkFormDrawer';
 import { QrModal } from '../overlays/QrModal';
@@ -21,7 +22,7 @@ interface AppApi {
   /** Bumped after every change, so pages refetch what they show. */
   version: number;
   refresh: () => void;
-  toast: (message: string, options?: { sticky?: boolean }) => void;
+  toast: ToastFn;
   openCreate: (seed?: FormSeed) => void;
   openEdit: (link: Link, seed?: FormSeed) => void;
   openQr: (link: LinkRef) => void;
@@ -37,23 +38,15 @@ export function useApp(): AppApi {
   return value;
 }
 
-const TOAST_MS = 2400;
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [qr, setQr] = useState<LinkRef | null>(null);
   const [toDelete, setToDelete] = useState<LinkRef | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
 
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
 
-  const toast = useCallback((message: string, options?: { sticky?: boolean }) => {
-    window.clearTimeout(toastTimer.current);
-    setToastMessage(message);
-    if (!options?.sticky) toastTimer.current = window.setTimeout(() => setToastMessage(null), TOAST_MS);
-  }, []);
+  const { message: toastMessage, toast } = useToast();
 
   const api = useMemo<AppApi>(
     () => ({

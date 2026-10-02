@@ -1,17 +1,15 @@
-import { hostPath, type LinkListItem } from '@daffa/shared';
-import { useEffect, useRef, useState } from 'react';
+import { hostPath, type Link as LinkModel, type LinkListItem } from '@daffa/shared';
+import { useState } from 'react';
 import { IconButton } from '../../components/controls';
-import { ChartIcon, CheckIcon, CopyIcon, EditIcon, KebabIcon, QrIcon } from '../../components/Icons';
+import { ChartIcon, EditIcon, QrIcon } from '../../components/Icons';
 import { GateTile, StatusBadge, Tag } from '../../components/tiles';
 import { api, ApiError } from '../../lib/api';
-import { useDismiss, useEscapeLayer } from '../../lib/focus';
 import { formatDate, formatNumber } from '../../lib/format';
-import { Link, navigate } from '../../lib/router';
+import { Link, detailPath, navigate } from '../../lib/router';
 import { useApp } from '../app/AppProvider';
-import { copyShortLink } from './copy';
+import { CopySlugButton } from './CopySlugButton';
+import { RowMenu } from './RowMenu';
 import styles from './list.module.css';
-
-const cx = (...names: Array<string | false | null | undefined>) => names.filter(Boolean).join(' ');
 
 export function expiryText(link: Pick<LinkListItem, 'status' | 'expiresAt'>): string {
   if (link.status === 'expired' && link.expiresAt !== null) return `Ended ${formatDate(link.expiresAt)}`;
@@ -21,43 +19,28 @@ export function expiryText(link: Pick<LinkListItem, 'status' | 'expiresAt'>): st
 
 interface LinkRowProps {
   link: LinkListItem;
+  /** The toggled link as the API returned it, so the list can update the row in place. */
+  onToggled: (link: LinkModel) => void;
   defaultMenuOpen?: boolean;
 }
 
-export function LinkRow({ link, defaultMenuOpen = false }: LinkRowProps) {
-  const { openQr, openEdit, openDelete, refresh, toast } = useApp();
-  const [copied, setCopied] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(defaultMenuOpen);
+export function LinkRow({ link, onToggled, defaultMenuOpen = false }: LinkRowProps) {
+  const { openQr, openEdit, openDelete, toast } = useApp();
   const [toggling, setToggling] = useState(false);
-  const actions = useRef<HTMLDivElement>(null);
-  const copiedTimer = useRef<number | undefined>(undefined);
 
-  const closeMenu = () => setMenuOpen(false);
-  useDismiss(actions, menuOpen, closeMenu);
-  useEscapeLayer(menuOpen, closeMenu);
-  useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
-
-  const detailPath = `/links/${link.id}`;
+  const path = detailPath(link.id);
   const ref = { id: link.id, slug: link.slug, title: link.title };
-
-  const copy = async () => {
-    await copyShortLink(link.slug, toast);
-    setCopied(true);
-    window.clearTimeout(copiedTimer.current);
-    copiedTimer.current = window.setTimeout(() => setCopied(false), 1600);
-  };
 
   const toggle = async () => {
     setToggling(true);
     try {
       const { link: updated } = await api.toggleLink(link.id);
       toast(`daffa.me/${link.slug} ${updated.status === 'active' ? 'activated' : 'deactivated'}`);
-      refresh();
+      onToggled(updated);
     } catch (error) {
       toast(error instanceof ApiError ? error.message : 'The link status could not be changed.');
     } finally {
       setToggling(false);
-      closeMenu();
     }
   };
 
@@ -67,15 +50,13 @@ export function LinkRow({ link, defaultMenuOpen = false }: LinkRowProps) {
         <StatusBadge status={link.status} />
         <div className={styles.slugLine}>
           <GateTile slug={link.slug} variant="row" />
-          <IconButton size={36} label={copied ? `Copied daffa.me/${link.slug}` : `Copy daffa.me/${link.slug}`} onClick={copy}>
-            {copied ? <CheckIcon /> : <CopyIcon />}
-          </IconButton>
+          <CopySlugButton slug={link.slug} />
         </div>
         <span className={styles.expiry}>{expiryText(link)}</span>
       </div>
 
       <div className={styles.info}>
-        <Link to={detailPath} className={styles.title}>
+        <Link to={path} className={styles.title}>
           {link.title}
         </Link>
         <a href={link.url} target="_blank" rel="noopener noreferrer" className={styles.dest} title={link.url}>
@@ -95,38 +76,29 @@ export function LinkRow({ link, defaultMenuOpen = false }: LinkRowProps) {
         <span className={styles.clicksLabel}>clicks</span>
       </div>
 
-      <div className={styles.actions} ref={actions}>
+      <div className={styles.actions}>
         <IconButton label="Show QR code" onClick={() => openQr(ref)}>
           <QrIcon />
         </IconButton>
         <IconButton label="Edit link" onClick={() => openEdit(link)}>
           <EditIcon />
         </IconButton>
-        <IconButton label="View analytics" onClick={() => navigate(detailPath)}>
+        <IconButton label="View analytics" onClick={() => navigate(path)}>
           <ChartIcon />
         </IconButton>
-        <IconButton label="More actions" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
-          <KebabIcon />
-        </IconButton>
-        {menuOpen && (
-          <div role="menu" aria-label={`Actions for daffa.me/${link.slug}`} className={styles.menu}>
-            <button type="button" role="menuitem" className={styles.menuItem} onClick={toggle} disabled={toggling}>
-              {link.status === 'active' ? 'Deactivate link' : 'Reactivate'}
-            </button>
-            <div className={styles.menuDivider} role="separator" />
-            <button
-              type="button"
-              role="menuitem"
-              className={cx(styles.menuItem, styles.menuDanger)}
-              onClick={() => {
-                closeMenu();
-                openDelete(ref);
-              }}
-            >
-              Delete link
-            </button>
-          </div>
-        )}
+        <RowMenu
+          label={`Actions for daffa.me/${link.slug}`}
+          defaultOpen={defaultMenuOpen}
+          items={[
+            {
+              label: link.status === 'active' ? 'Deactivate link' : 'Reactivate',
+              onSelect: toggle,
+              disabled: toggling,
+            },
+            'divider',
+            { label: 'Delete link', tone: 'danger', onSelect: () => openDelete(ref) },
+          ]}
+        />
       </div>
     </div>
   );

@@ -19,9 +19,18 @@ import { ROOT } from './bundle.mjs';
  *      1200x630 PNG, and _headers marks /dashboard as noindex.
  *   8. Turnstile: no test site key is in the build, and index.html carries a
  *      real production site key, not the placeholder from .env.production.
+ *   9. Route split, from the module map the build writes to
+ *      dist/client-chunks.json (see chunkMap in vite.config.ts):
+ *      a. the boot entry holds no public page and no dashboard module,
+ *      b. the public page loads only its own modules and the shared primitives,
+ *      c. the dashboard never loads a public page module,
+ *      d. the QR encoder is only ever loaded lazily,
+ *      e. the Turnstile script is referenced by the public page only.
+ *  10. Reports the initial load of the public page and of the dashboard.
  */
 
 const DIST = path.join(ROOT, 'apps/dashboard/dist/client');
+const CHUNK_MAP = path.join(ROOT, 'apps/dashboard/dist/client-chunks.json');
 
 if (!existsSync(DIST)) {
   console.error('No build found. Run `npm run build:dashboard` first.');
@@ -49,7 +58,22 @@ const fail = (message) => {
 };
 
 // 1 and 2: forbidden strings in any shipped text file.
-const DEV_ONLY = ['daffa-dev-state-preview', 'noresults', 'create-errors', 'create-ok'];
+const DEV_ONLY = [
+  'daffa-dev-state-preview',
+  'noresults',
+  'create-errors',
+  'create-ok',
+  'create-url',
+  'loading-more',
+  'menu-blocked',
+  'public-delete',
+  'block-none',
+  'block-covered',
+  'blocked-empty',
+  'blocked-nomatch',
+  'budget-warn',
+  'budget-full',
+];
 const CDNS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net', 'unpkg.com', 'cdnjs.cloudflare.com'];
 
 const contents = new Map();
@@ -172,6 +196,103 @@ if (siteKey === undefined) {
   pass('a real Turnstile site key is set');
 }
 
+// 9: route split. The boot entry loads either the public page or the
+// dashboard, each a lazy chunk. Chunks a route loads before it renders are
+// the static closure of its chunk: its imports, their imports, and so on.
+const CLIENT = 'apps/dashboard/src/client/';
+const PUBLIC_APP = `${CLIENT}public/PublicApp.tsx`;
+const DASHBOARD_APP = `${CLIENT}features/app/DashboardApp.tsx`;
+
+/**
+ * Everything the public page may load: its own folder, the boot entry and
+ * global styles, the named shared primitives, the shared rules, React, and the
+ * bundler runtime (virtual ids start with a NUL byte). Any other client module
+ * is dashboard code.
+ */
+const PUBLIC_ALLOWED = [
+  /^\0/,
+  /^apps\/dashboard\/index\.html$/,
+  new RegExp(`^${CLIENT}(main\\.tsx|boot\\.ts)$`),
+  new RegExp(`^${CLIENT}public/`),
+  new RegExp(`^${CLIENT}styles/`),
+  new RegExp(`^${CLIENT}components/(controls|fields|overlay|tiles|qr)\\.module\\.css$`),
+  new RegExp(`^${CLIENT}components/(controls|fields|overlay|tiles|Icons|QrCode)\\.tsx$`),
+  new RegExp(`^${CLIENT}lib/(http|qr|useQr|clipboard|toast|countdown|urlPreview|format|focus)\\.ts$`),
+  /^shared\/(?!.*\.test\.ts$)/,
+  /^node_modules\/(react|react-dom|scheduler|@fontsource\/[^/]+)\//,
+];
+
+const pending = (message) => checks.push(`  PENDING  ${message}`);
+
+let chunks = [];
+if (!existsSync(CHUNK_MAP)) {
+  fail('dist/client-chunks.json is missing. Build with npm run build:dashboard, whose Vite config writes it');
+} else {
+  chunks = JSON.parse(await readFile(CHUNK_MAP, 'utf8')).chunks;
+}
+const byFile = new Map(chunks.map((chunk) => [chunk.file, chunk]));
+const entry = chunks.find((chunk) => chunk.isEntry);
+const publicChunk = chunks.find((chunk) => chunk.facadeModuleId === PUBLIC_APP);
+const dashboardChunk = chunks.find((chunk) => chunk.facadeModuleId === DASHBOARD_APP);
+
+/**
+ * Chunks reachable from `start` through static imports, and through dynamic
+ * imports too when `dynamic` is set. The boot entry's own dynamic imports are
+ * the two routes, so they are never followed: reaching the entry from one
+ * route must not count as loading the other.
+ */
+function closure(start, { dynamic = false } = {}) {
+  const seen = new Set();
+  const stack = [start];
+  while (stack.length) {
+    const file = stack.pop();
+    if (seen.has(file) || !byFile.has(file)) continue;
+    seen.add(file);
+    const chunk = byFile.get(file);
+    stack.push(...chunk.imports);
+    if (dynamic && !chunk.isEntry) stack.push(...chunk.dynamicImports);
+  }
+  return [...seen].map((file) => byFile.get(file));
+}
+
+const modulesIn = (list) => [...new Set(list.flatMap((chunk) => chunk.modules))];
+const show = (ids) => ids.map((id) => id.replace(/^\0/, '')).join(', ');
+
+if (chunks.length && (!entry || !publicChunk || !dashboardChunk)) {
+  fail('the module map lacks the boot entry, the public page chunk, or the dashboard chunk');
+} else if (chunks.length) {
+  const entryModules = modulesIn(closure(entry.file));
+  const routeInEntry = entryModules.filter((id) => id.startsWith(`${CLIENT}public/`) || id.startsWith(`${CLIENT}features/`));
+  if (routeInEntry.length) fail(`9a. the boot entry loads route code: ${show(routeInEntry)}`);
+  else pass(`9a. the boot entry holds no public page or dashboard module (${entryModules.length} modules)`);
+
+  const publicModules = modulesIn(closure(publicChunk.file));
+  const notAllowed = publicModules.filter((id) => !PUBLIC_ALLOWED.some((rule) => rule.test(id)));
+  if (notAllowed.length) fail(`9b. the public page loads modules outside its allowlist: ${show(notAllowed)}`);
+  else pass(`9b. the public page loads only its own modules and shared primitives (${publicModules.length} modules)`);
+
+  const dashboardModules = modulesIn(closure(dashboardChunk.file, { dynamic: true }));
+  const publicInDashboard = dashboardModules.filter((id) => id.startsWith(`${CLIENT}public/`));
+  if (publicInDashboard.length) fail(`9c. the dashboard loads public page modules: ${show(publicInDashboard)}`);
+  else pass(`9c. the dashboard, its lazy pages included, loads no public page module (${dashboardModules.length} modules)`);
+
+  const qrChunks = chunks.filter((chunk) => chunk.modules.some((id) => id.startsWith('node_modules/qrcode-generator/')));
+  const eager = new Set([entry, publicChunk, dashboardChunk].flatMap((chunk) => closure(chunk.file)).map((c) => c.file));
+  const eagerQr = qrChunks.filter((chunk) => eager.has(chunk.file) || !chunk.isDynamicEntry);
+  if (!qrChunks.length) fail('9d. qrcode-generator is missing from the build');
+  else if (eagerQr.length) fail(`9d. qrcode-generator loads with a route: ${eagerQr.map((c) => c.file).join(', ')}`);
+  else pass('9d. qrcode-generator is a lazy chunk, loaded on first QR code only');
+
+  const turnstileFiles = [...contents]
+    .filter(([file, text]) => file.endsWith('.js') && text.includes('challenges.cloudflare.com'))
+    .map(([file]) => path.relative(DIST, file).replaceAll('\\', '/'));
+  const publicFiles = new Set(closure(publicChunk.file).map((chunk) => chunk.file));
+  const outside = turnstileFiles.filter((file) => !publicFiles.has(file) || file === entry.file);
+  if (outside.length) fail(`9e. the Turnstile script is referenced outside the public page: ${outside.join(', ')}`);
+  else if (!turnstileFiles.length) pending('9e. the Turnstile script is not in the build yet, the public page form arrives in F2');
+  else pass('9e. the Turnstile script is referenced by the public page chunks only');
+}
+
 // 5: sizes.
 const initialNames = new Set([...html.matchAll(/(?:src|href)="\/?(assets\/[^"]+\.(?:js|css))"/g)].map((m) => m[1]));
 
@@ -192,6 +313,34 @@ for (const file of all.filter((f) => /\.(js|css)$/.test(f)).sort()) {
   rows.push({ name, raw: buffer.length, gzip, initial });
 }
 
+// 10: what each route loads before it renders, JavaScript and CSS. Fonts
+// are left out, the browser fetches only the weights a page uses.
+const sizeOf = new Map(rows.map((row) => [row.name, row]));
+function routeLoad(chunk) {
+  const files = new Set();
+  for (const part of closure(chunk.file)) {
+    files.add(part.file);
+    for (const css of part.css) files.add(css);
+  }
+  for (const name of initialNames) files.add(name);
+  let raw = 0;
+  let gzip = 0;
+  for (const file of files) {
+    raw += sizeOf.get(file)?.raw ?? 0;
+    gzip += sizeOf.get(file)?.gzip ?? 0;
+  }
+  return { raw, gzip, files: files.size };
+}
+const routeLoads =
+  chunks.length && publicChunk && dashboardChunk
+    ? { public: routeLoad(publicChunk), dashboard: routeLoad(dashboardChunk) }
+    : null;
+if (routeLoads) {
+  pending(
+    `10. public page initial load is ${kb(routeLoads.public.gzip)} gzip, the budget is set in F2 from the full public page`,
+  );
+}
+
 const fonts = all.filter((f) => f.endsWith('.woff2'));
 const flags = all.filter((f) => f.endsWith('.svg') && path.basename(f) !== 'favicon.svg');
 const size = async (list) => (await Promise.all(list.map((f) => stat(f)))).reduce((sum, s) => sum + s.size, 0);
@@ -205,6 +354,14 @@ for (const row of rows) {
   console.log(`  ${row.name.padEnd(46)} ${kb(row.raw).padStart(10)} ${kb(row.gzip).padStart(10)}  ${row.initial ? 'initial' : 'lazy'}`);
 }
 console.log(`\n  Initial load, JS and CSS: ${kb(initialRaw)} raw, ${kb(initialGzip)} gzip`);
+if (routeLoads) {
+  console.log(
+    `  Public page initial load, boot entry and public route: ${kb(routeLoads.public.raw)} raw, ${kb(routeLoads.public.gzip)} gzip, ${routeLoads.public.files} files`,
+  );
+  console.log(
+    `  Dashboard initial load, boot entry and dashboard route: ${kb(routeLoads.dashboard.raw)} raw, ${kb(routeLoads.dashboard.gzip)} gzip, ${routeLoads.dashboard.files} files`,
+  );
+}
 console.log(`  Fonts: ${fonts.length} woff2 files, ${kb(await size(fonts))} on disk, only the weights and subsets in use are fetched`);
 console.log(`  Flags: ${flags.length} svg files, ${kb(await size(flags))} on disk, fetched only for countries shown`);
 

@@ -480,6 +480,59 @@ const publicListCases: ExplainCase[] = (['newest', 'oldest', 'clicks', 'least'] 
   ],
 );
 
+/**
+ * The exact request shapes the dashboard client sends that the cases above do
+ * not: infinite scroll through an unfiltered list (a cursor and nothing else),
+ * the first load (counts without filters), a status filter alone on the Public
+ * tab, the blocked domain marks of one public page, the Blocked Domains modal
+ * opening without a search, and the block dialog's check on a subdomain.
+ */
+const clientCases: ExplainCase[] = [
+  ...(['newest', 'oldest', 'clicks', 'least'] as const).flatMap((sort): ExplainCase[] => {
+    const byDate = sort === 'newest' || sort === 'oldest';
+    return [
+      {
+        name: `client: private, ${sort}, next page without filters`,
+        sql: LIST_SQL.private[sort],
+        params: [SAMPLE_NOW, SAMPLE_START, null, null, 'all', byDate ? SAMPLE_START : 4, 7, 26],
+        readsClicks: true,
+        noScan: true,
+      },
+      {
+        name: `client: public, ${sort}, next page without filters`,
+        sql: LIST_SQL.public[sort],
+        params: [SAMPLE_NOW, null, 'all', byDate ? SAMPLE_START : 300, 14, 26],
+        readsClicks: false,
+        noScan: true,
+      },
+    ];
+  }),
+  {
+    name: 'client: public, status filter only',
+    sql: LIST_SQL.public.newest,
+    params: [SAMPLE_NOW, null, 'inactive', null, null, 26],
+    readsClicks: false,
+    noScan: true,
+  },
+  { name: 'client: private counts, no filters', sql: COUNT_PRIVATE, params: [SAMPLE_NOW, null, null, 'all'], readsClicks: false, noScan: true },
+  { name: 'client: public counts, no filters', sql: COUNT_PUBLIC, params: [SAMPLE_NOW, null, 'all'], readsClicks: false, noScan: true },
+  {
+    name: 'client: blocked marks for a public page',
+    sql: BLOCKED_MATCH,
+    params: ['["docs.google.com","google.com","com","drive.google.com","github.com","www.canva.com","canva.com","notion.so","so"]'],
+    readsClicks: false,
+    noScan: true,
+  },
+  { name: 'client: blocked domains, no search', sql: BLOCKED_LIST, params: [null], readsClicks: false },
+  {
+    name: 'client: block check, active public links under a subdomain',
+    sql: PUBLIC_HOST_CANDIDATES,
+    params: ['docs.example.com', '%.docs.example.com'],
+    readsClicks: false,
+    noScan: true,
+  },
+];
+
 export const EXPLAIN_CASES: ExplainCase[] = [
   { name: 'summary: link counts', sql: SUMMARY_COUNTS, params: [SAMPLE_NOW], readsClicks: false, noScan: true },
   { name: 'summary: human and unique clicks', sql: SUMMARY_CLICKS, params: [SAMPLE_START], readsClicks: true },
@@ -561,4 +614,5 @@ export const EXPLAIN_CASES: ExplainCase[] = [
   { name: 'blocked domains: remove', sql: BLOCKED_DELETE, params: ['example.com'], readsClicks: false, noScan: true },
   { name: 'cron: purge rate limits', sql: PURGE_RATE_LIMITS, params: [SAMPLE_HOUR - 86_400_000], readsClicks: false, noScan: true },
   { name: 'cron: purge daily budget', sql: PURGE_BUDGET, params: [SAMPLE_DAY - 7 * 86_400_000], readsClicks: false, noScan: true },
+  ...clientCases,
 ];

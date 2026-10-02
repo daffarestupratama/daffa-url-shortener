@@ -50,6 +50,10 @@ const TEXT: Array<[Token, Token, string]> = [
   ['--sign', '--ink', 'NOT FOUND badge and chart note heading'],
   ['--tile-prefix', '--tile-hi', 'gate tile prefix, light end of the gradient'],
   ['--tile-prefix', '--tile-lo', 'gate tile prefix, dark end of the gradient'],
+  ['--tile-label', '--tile-hi', 'countdown tile labels, light end of the gradient'],
+  ['--ink2', '--locked-bg', 'prefix in the locked slug field'],
+  ['--ink', '--danger-wash', 'retry panel text on the public page'],
+  ['--ink2', '--turnstile-bg', 'Turnstile slot placeholder'],
 ];
 
 /** Measured shortfalls, reported rather than changed. */

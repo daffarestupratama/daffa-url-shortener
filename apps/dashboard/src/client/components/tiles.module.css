@@ -69,6 +69,18 @@
 }
 .qr .prefix { font-size: 0.75em; }
 
+/* The short link on the public result card. One line, as in the design. */
+.result {
+  max-width: 100%;
+  padding: 14px 18px;
+  border-radius: var(--r-12);
+  font-size: clamp(24px, 3cqw, 34px);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.result .prefix { font-size: 0.62em; }
+
 .empty {
   padding: 12px 18px;
   border-radius: var(--r-10);

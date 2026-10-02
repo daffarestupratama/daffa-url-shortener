@@ -29,20 +29,25 @@ interface DialogProps {
   labelledBy: string;
   describedBy?: string;
   onClose: () => void;
-  /** The QR modal closes on a scrim click, the delete confirmation does not. */
-  layer: 'qr' | 'delete';
+  /**
+   * A dialog closes on a scrim click. An alert dialog asks for a decision, so
+   * only its buttons and Escape close it.
+   */
+  kind: 'dialog' | 'alert';
+  /** Stacking from the design: 60 for the QR, rate limit and blocked domains layers, 70 for confirmations. */
+  level: 60 | 70;
   className?: string;
   children: ReactNode;
 }
 
-export function Dialog({ labelledBy, describedBy, onClose, layer, className, children }: DialogProps) {
+export function Dialog({ labelledBy, describedBy, onClose, kind, level, className, children }: DialogProps) {
   const ref = useRef<HTMLDivElement>(null);
   useFocusTrap(ref, true);
   useEscapeLayer(true, onClose);
-  const alert = layer === 'delete';
+  const alert = kind === 'alert';
   return (
     <div
-      className={cx(styles.center, alert ? styles.deleteLayer : styles.qrLayer)}
+      className={cx(styles.center, level === 70 ? styles.level70 : styles.level60)}
       onClick={alert ? undefined : (event) => event.target === event.currentTarget && onClose()}
     >
       <div

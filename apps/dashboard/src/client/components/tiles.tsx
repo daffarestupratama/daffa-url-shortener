@@ -4,12 +4,12 @@ import styles from './tiles.module.css';
 
 const cx = (...names: Array<string | false | null | undefined>) => names.filter(Boolean).join(' ');
 
-export type TileVariant = 'row' | 'kpi' | 'detail' | 'preview' | 'qr' | 'empty';
+export type TileVariant = 'row' | 'kpi' | 'detail' | 'preview' | 'qr' | 'empty' | 'result';
 
 interface GateTileProps {
   slug: string;
   variant: TileVariant;
-  /** Rows and KPIs show "/slug". Detail, preview and QR show "daffa.me/slug". */
+  /** Rows and KPIs show "/slug". Detail, preview, QR and the public result show "daffa.me/slug". */
   prefix?: 'slash' | 'domain';
   className?: string;
 }

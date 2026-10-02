@@ -1,7 +1,7 @@
 import * as dev from './devPreview';
-import type { DetailFlags, ListFlags, PreviewActions } from './devPreview';
+import type { DetailFlags, FirstRows, ListFlags, ModerationPreviewActions, PreviewActions } from './devPreview';
 
-export type { DetailFlags, ListFlags, PreviewActions };
+export type { DetailFlags, FirstRows, ListFlags, ModerationPreviewActions, PreviewActions };
 
 const NO_LIST_FLAGS: ListFlags = {
   loading: false,
@@ -11,6 +11,9 @@ const NO_LIST_FLAGS: ListFlags = {
   tagOpen: false,
   sortOpen: false,
   menuOpen: false,
+  menuBlocked: false,
+  loadingMore: false,
+  budgetShare: null,
 };
 
 const NO_DETAIL_FLAGS: DetailFlags = { loading: false, error: false, empty: false, notFound: false, flat: false };

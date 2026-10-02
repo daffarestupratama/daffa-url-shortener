@@ -17,6 +17,7 @@
     "deploy:redirect": "wrangler deploy -c apps/redirector/wrangler.jsonc",
     "deploy:dashboard": "npm run deploy -w @daffa/dashboard",
     "seed:local":"node scripts/seed.mjs",
+    "seed:many": "node scripts/seed-many.mjs",
     "smoke": "node scripts/api-smoke.mjs",
     "explain": "node scripts/explain.mjs",
     "icons": "node scripts/favicons.mjs && node scripts/og-image.mjs",

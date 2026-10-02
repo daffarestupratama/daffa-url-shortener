@@ -1,11 +1,16 @@
 import { createElement, useSyncExternalStore, type AnchorHTMLAttributes, type MouseEvent } from 'react';
 
 /**
- * A router of about sixty lines on top of the History API. The dashboard has
- * two pages, so a routing library would cost more than it saves. Deep links
- * such as /links/1?range=7d survive a refresh because the Worker serves
+ * A router of about sixty lines on top of the History API, used by the
+ * dashboard only. The dashboard has two pages under /dashboard, so a routing
+ * library would cost more than it saves. Deep links such as
+ * /dashboard/links/1?range=7d survive a refresh because the Worker serves
  * index.html for every non API path (not_found_handling: single-page-application).
+ * The public page at / is a separate app and never uses this module.
  */
+
+/** Every dashboard path starts here. Cloudflare Access protects it. */
+export const DASHBOARD_BASE = '/dashboard';
 
 const listeners = new Set<() => void>();
 
@@ -75,8 +80,13 @@ export function Link({ to, onClick, ...rest }: LinkProps) {
   return createElement('a', { ...rest, href: to, onClick: handleClick });
 }
 
-/** The raw id segment of /links/:id, or null for any other path. */
+/** The path of a link's analytics page. */
+export function detailPath(id: number): string {
+  return `${DASHBOARD_BASE}/links/${id}`;
+}
+
+/** The raw id segment of /dashboard/links/:id, or null for any other path. */
 export function matchDetail(path: string): string | null {
-  const match = /^\/links\/([^/]+)\/?$/.exec(path);
+  const match = /^\/dashboard\/links\/([^/]+)\/?$/.exec(path);
   return match ? decodeURIComponent(match[1]!) : null;
 }

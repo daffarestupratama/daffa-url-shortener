@@ -1,4 +1,4 @@
-import { COLORS, SHADOWS } from '@daffa/shared';
+import { COLORS, GRADIENTS, SHADOWS } from '@daffa/shared';
 import { describe, expect, it } from 'vitest';
 import css from '../styles/tokens.css?raw';
 
@@ -25,6 +25,13 @@ describe('tokens.css matches shared/tokens.ts', () => {
 
   it('declares every shared shadow with the same value', () => {
     for (const [name, value] of Object.entries(SHADOWS)) {
+      expect(tokens.get(name), name).toBeDefined();
+      expect(normalize(tokens.get(name)!), name).toBe(normalize(value));
+    }
+  });
+
+  it('declares every shared gradient with the same value', () => {
+    for (const [name, value] of Object.entries(GRADIENTS)) {
       expect(tokens.get(name), name).toBeDefined();
       expect(normalize(tokens.get(name)!), name).toBe(normalize(value));
     }

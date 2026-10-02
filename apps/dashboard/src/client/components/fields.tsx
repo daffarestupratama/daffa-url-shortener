@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, ReactNode, Ref, TextareaHTMLAttributes } from 'react';
 import styles from './fields.module.css';
 
 const cx = (...names: Array<string | false | null | undefined>) => names.filter(Boolean).join(' ');
@@ -22,6 +22,8 @@ export function Label({ htmlFor, id, children, required, optional }: { htmlFor?:
 interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {
   mono?: boolean;
   state?: 'invalid' | 'valid' | null;
+  /** React 19 passes refs as an ordinary prop, so this reaches the input through the spread. */
+  ref?: Ref<HTMLInputElement>;
 }
 
 export function TextInput({ mono, state, className, ...rest }: TextInputProps) {
@@ -42,6 +44,15 @@ export function Help({ id, children }: { id?: string; children: ReactNode }) {
   return (
     <span id={id} className={styles.help}>
       {children}
+    </span>
+  );
+}
+
+/** The normalized destination under a URL field, such as "Saved as https://example.com". */
+export function Preview({ id, url }: { id?: string; url: string }) {
+  return (
+    <span id={id} className={styles.preview}>
+      Saved as {url}
     </span>
   );
 }

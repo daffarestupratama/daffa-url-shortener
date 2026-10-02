@@ -4,7 +4,7 @@ import { Dialog } from '../../components/overlay';
 import { Badge } from '../../components/tiles';
 import { api, ApiError } from '../../lib/api';
 import { formatNumber } from '../../lib/format';
-import { matchDetail, navigate } from '../../lib/router';
+import { DASHBOARD_BASE, matchDetail, navigate } from '../../lib/router';
 import { useApp, type LinkRef } from '../app/AppProvider';
 import styles from './overlays.module.css';
 
@@ -38,7 +38,7 @@ export function DeleteDialog({ link, onClose, onDeleted }: DeleteDialogProps) {
       toast(`Link daffa.me/${link.slug} deleted`);
       onDeleted();
       refresh();
-      if (matchDetail(window.location.pathname) === String(link.id)) navigate('/', { replace: true });
+      if (matchDetail(window.location.pathname) === String(link.id)) navigate(DASHBOARD_BASE, { replace: true });
     } catch (caught) {
       setDeleting(false);
       setError(caught instanceof ApiError ? caught.message : 'The link could not be deleted.');
@@ -48,7 +48,7 @@ export function DeleteDialog({ link, onClose, onDeleted }: DeleteDialogProps) {
   const count = (value: number | undefined) => (value === undefined ? '…' : formatNumber(value));
 
   return (
-    <Dialog layer="delete" labelledBy="del-title" describedBy="del-desc" onClose={onClose} className={styles.deleteDialog}>
+    <Dialog kind="alert" level={70} labelledBy="del-title" describedBy="del-desc" onClose={onClose} className={styles.deleteDialog}>
       <Badge tone="danger" size="sm" wide className={styles.badgeStart}>
         PERMANENT DELETE
       </Badge>

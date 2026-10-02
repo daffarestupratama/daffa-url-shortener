@@ -3,6 +3,7 @@ import {
   deriveStatus,
   generateSlug,
   hostPath,
+  normalizeUrlInput,
   validateSlug,
   validateUrl,
   type Link,
@@ -10,14 +11,15 @@ import {
 } from '@daffa/shared';
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { Button, IconButton, Switch } from '../../components/controls';
-import { Field, FieldError, FieldOk, Help, Label, TextArea, TextInput } from '../../components/fields';
+import { Field, FieldError, FieldOk, Help, Label, Preview, TextArea, TextInput } from '../../components/fields';
 import { Drawer } from '../../components/overlay';
 import { AddChip, GateTile, RemovableTag, StatusBadge } from '../../components/tiles';
 import { api, ApiError, isAbort } from '../../lib/api';
 import { formatDateTime, fromWibInput, toWibInput } from '../../lib/format';
+import { urlPreview } from '../../lib/urlPreview';
 import { useResource } from '../../lib/useResource';
 import { useApp } from '../app/AppProvider';
-import { useQrMatrix } from '../overlays/QrModal';
+import { useQrMatrix } from '../../lib/useQr';
 import styles from './form.module.css';
 
 const cx = (...names: Array<string | false | null | undefined>) => names.filter(Boolean).join(' ');
@@ -103,6 +105,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
 
   const urlError =
     validateUrl(url, { required: tried || urlTouched }) ?? (serverError?.field === 'url' ? serverError.message : null);
+  const savedAs = urlError ? null : urlPreview(url);
   const slugTakenError = availability.status === 'taken' && availability.slug === slug ? availability.message : null;
   const slugError = slugLocalError ?? slugTakenError ?? (serverError?.field === 'slug' ? serverError.message : null);
   const slugOk =
@@ -134,7 +137,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
     if (validateUrl(url, { required: true }) || validateSlug(slug, { required: true }) || slugTakenError) return;
 
     const input: LinkInput = {
-      url: url.trim(),
+      url: normalizeUrlInput(url),
       slug,
       title: title.trim(),
       description: description.trim(),
@@ -190,7 +193,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
                 value={url}
                 placeholder="https://"
                 state={urlError ? 'invalid' : null}
-                aria-describedby={urlError ? 'f-url-error' : undefined}
+                aria-describedby={urlError ? 'f-url-error' : savedAs ? 'f-url-preview' : undefined}
                 onChange={(event) => {
                   setUrl(event.target.value);
                   if (serverError?.field === 'url') setServerError(null);
@@ -198,6 +201,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
                 onBlur={() => setUrlTouched(true)}
               />
               {urlError && <FieldError id="f-url-error">{urlError}</FieldError>}
+              {savedAs && <Preview id="f-url-preview" url={savedAs} />}
             </Field>
 
             <Field>
@@ -325,7 +329,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
             <span className={styles.previewTitle}>PREVIEW</span>
             <div className={styles.previewCard}>
               <GateTile slug={previewSlug} variant="preview" prefix="domain" />
-              <span className={styles.previewDest}>{url ? hostPath(url.trim()) : 'Destination URL not set'}</span>
+              <span className={styles.previewDest}>{url.trim() ? hostPath(normalizeUrlInput(url)) : 'Destination URL not set'}</span>
               <div className={styles.previewStatus}>
                 <StatusBadge status={previewStatus} />
                 <span className={styles.previewExp}>

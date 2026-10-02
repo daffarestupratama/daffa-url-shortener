@@ -51,22 +51,6 @@
   text-align: center;
 }
 
-.qrSvg {
-  max-width: 100%;
-  height: auto;
-}
-
-.qrLoading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 240px;
-  height: 240px;
-  max-width: 100%;
-  font: 500 14px var(--font);
-  color: var(--ink2);
-}
-
 .qrNote {
   margin: 0;
   font: 400 14px/1.55 var(--font);

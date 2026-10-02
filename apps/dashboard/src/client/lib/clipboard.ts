@@ -1,4 +1,4 @@
-import { shortUrl } from '../../lib/qr';
+import { shortUrl } from './qr';
 
 /** Copies https://daffa.me/<slug> and confirms with the design's toast copy. */
 export async function copyShortLink(slug: string, toast: (message: string) => void): Promise<void> {

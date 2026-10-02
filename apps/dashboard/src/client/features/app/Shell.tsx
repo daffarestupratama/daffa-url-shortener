@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { buttonClass } from '../../components/controls';
 import { LogoTile } from '../../components/tiles';
 import { api } from '../../lib/api';
-import { Link } from '../../lib/router';
+import { DASHBOARD_BASE, Link } from '../../lib/router';
 import { useResource } from '../../lib/useResource';
 import styles from './shell.module.css';
 
@@ -14,7 +14,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <Link to="/" className={styles.brand} aria-label="daffa.me Link Manager, all links">
+        <Link to={DASHBOARD_BASE} className={styles.brand} aria-label="daffa.me Link Manager, all links">
           <LogoTile />
           <span className={styles.brandText}>
             <span className={styles.domain}>daffa.me</span>

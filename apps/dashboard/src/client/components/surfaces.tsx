@@ -24,11 +24,13 @@ interface KpiCardProps {
   /** Text color for the label and value, for the bot card. */
   tone?: 'link' | 'bot';
   valueClassName?: string;
+  /** Extra content between the value and the foot, such as the public budget meter. */
+  children?: ReactNode;
 }
 
 const TONE: Record<'ink' | 'link' | 'bot', string> = { ink: 'var(--ink)', link: 'var(--link)', bot: 'var(--bot)' };
 
-export function KpiCard({ label, value, foot, legend, tone, valueClassName }: KpiCardProps) {
+export function KpiCard({ label, value, foot, legend, tone, valueClassName, children }: KpiCardProps) {
   const toneColor = tone ? TONE[tone] : undefined;
   return (
     <div className={styles.kpi}>
@@ -39,6 +41,7 @@ export function KpiCard({ label, value, foot, legend, tone, valueClassName }: Kp
       <span className={cx(styles.kpiValue, valueClassName)} style={toneColor ? { color: toneColor } : undefined}>
         {value}
       </span>
+      {children}
       {foot !== undefined && <span className={styles.kpiFoot}>{foot}</span>}
     </div>
   );

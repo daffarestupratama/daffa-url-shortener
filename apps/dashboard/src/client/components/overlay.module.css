@@ -1,5 +1,6 @@
 /* Stacking follows the design: 30 menu backdrop, 40 dropdowns and menus,
-   50/51 form scrim and drawer, 60 QR, 70 delete, 80 toast. */
+   50/51 form scrim and drawer, 60 QR, rate limit and blocked domains,
+   70 confirmations (delete, block), 80 toast. */
 
 .formScrim {
   position: fixed;
@@ -33,8 +34,8 @@
   justify-content: center;
   padding: 16px;
 }
-.qrLayer { z-index: 60; background: var(--scrim-qr); }
-.deleteLayer { z-index: 70; background: var(--scrim-delete); }
+.level60 { z-index: 60; background: var(--scrim-qr); }
+.level70 { z-index: 70; background: var(--scrim-delete); }
 
 /* Dialogs float above everything with the lift shadow. */
 .dialog {

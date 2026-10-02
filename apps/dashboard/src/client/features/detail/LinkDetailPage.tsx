@@ -4,13 +4,13 @@ import { Button, SegmentedControl, buttonClass } from '../../components/controls
 import { KpiCard, Panel, Skeleton } from '../../components/surfaces';
 import { Badge, GateTile, Kicker, StatusBadge, Tag } from '../../components/tiles';
 import { api, ApiError } from '../../lib/api';
+import { copyShortLink } from '../../lib/clipboard';
 import { formatDateTime, formatNumber, formatPercent, formatRelative } from '../../lib/format';
 import { applyDetailOverlay, detailFlags } from '../../lib/preview';
-import { Link } from '../../lib/router';
+import { DASHBOARD_BASE, Link } from '../../lib/router';
 import { pickEnum, pickPositiveInt, useSearchParams } from '../../lib/useQuery';
 import { useResource } from '../../lib/useResource';
 import { useApp } from '../app/AppProvider';
-import { copyShortLink } from '../list/copy';
 import { listPathWithFilters } from '../list/LinksPage';
 import { BotPanel, NetworkPanel, RankingsGrid } from './AnalyticsPanels';
 import { ClickLog } from './ClickLog';
@@ -268,7 +268,7 @@ function NotFoundView() {
         <GateTile slug="_ _ _" variant="empty" />
         <h2 className={styles.h2}>Link not found</h2>
         <p className={styles.stateText}>No link exists at this address. It may have been deleted.</p>
-        <Link to="/" className={buttonClass('primary', 'lg')}>
+        <Link to={DASHBOARD_BASE} className={buttonClass('primary', 'lg')}>
           Go to All Links
         </Link>
       </Panel>

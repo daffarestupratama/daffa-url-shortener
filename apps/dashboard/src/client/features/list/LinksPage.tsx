@@ -1,19 +1,44 @@
-import type { LinkSort, LinkStatusFilter, Summary } from '@daffa/shared';
+import {
+  isOnDomain,
+  type BlockDomainResult,
+  type BlockedDomainCheck,
+  type BlockedDomainList,
+  type Link,
+  type LinkSort,
+  type LinkStatusFilter,
+  type PublicLinkItem,
+  type Summary,
+  type Visibility,
+} from '@daffa/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, SegmentedControl } from '../../components/controls';
-import { SearchIcon } from '../../components/Icons';
-import { KpiCard, Panel, PanelHeader, Skeleton } from '../../components/surfaces';
-import { Badge, GateTile } from '../../components/tiles';
-import { api, ApiError } from '../../lib/api';
+import { BlockIcon, SearchIcon } from '../../components/Icons';
+import { KpiCard } from '../../components/surfaces';
+import { GateTile } from '../../components/tiles';
+import { api } from '../../lib/api';
 import { formatDateRange, formatNumber } from '../../lib/format';
 import { applyListOverlay, listFlags } from '../../lib/preview';
+import { DASHBOARD_BASE } from '../../lib/router';
 import { pickEnum, useSearchParams } from '../../lib/useQuery';
 import { useResource } from '../../lib/useResource';
 import { useApp } from '../app/AppProvider';
-import { LinkRow } from './LinkRow';
+import { BlockDomainDialog } from '../moderation/BlockDomainDialog';
+import { BlockedDomainsModal } from '../moderation/BlockedDomainsModal';
+import { PublicDeleteDialog } from '../moderation/PublicDeleteDialog';
+import { BudgetKpi } from './BudgetKpi';
+import { LinkTabs, TAB_PANEL_ID, tabId } from './LinkTabs';
+import { patchById } from './listState';
+import {
+  EmptyPanel,
+  ErrorPanel,
+  LoadingPanel,
+  NoResultsPanel,
+  PublicEmptyPanel,
+  PublicNoResultsPanel,
+} from './ListStates';
+import { PrivateTable, PublicTable, type Paging } from './Tables';
+import { useLinkList } from './useLinkList';
 import styles from './list.module.css';
-
-const cx = (...names: Array<string | false | null | undefined>) => names.filter(Boolean).join(' ');
 
 const STATUSES: ReadonlyArray<readonly [LinkStatusFilter, string]> = [
   ['all', 'All'],
@@ -31,10 +56,27 @@ const SORTS: ReadonlyArray<readonly [LinkSort, string]> = [
 ];
 const SORT_KEYS = SORTS.map(([key]) => key);
 
-/** The list query the detail page's "All Links" button returns to. */
+const TAB_KEYS: readonly Visibility[] = ['private', 'public'];
+
+const TAB_DESCRIPTION: Record<Visibility, string> = {
+  private: 'Created by the owner. Custom slugs, tags, expiration, and full analytics.',
+  public: 'Created by visitors on link.daffa.me. Permanent, with click counts only.',
+};
+
+/** The list query the detail page's "All Links" button returns to, the tab included. */
 let lastListSearch = '';
 export function listPathWithFilters(): string {
-  return `/${lastListSearch}`;
+  return `${DASHBOARD_BASE}${lastListSearch}`;
+}
+
+type Moderation =
+  | { kind: 'delete'; link: PublicLinkItem; preview?: boolean }
+  | { kind: 'block'; host: string; forced?: BlockedDomainCheck; preview?: boolean }
+  | null;
+
+interface BlockedModalState {
+  query: string;
+  forced?: BlockedDomainList;
 }
 
 export function LinksPage() {
@@ -46,6 +88,7 @@ export function LinksPage() {
   remembered.delete('overlay');
   lastListSearch = remembered.size > 0 ? `?${remembered.toString()}` : '';
 
+  const tab = pickEnum(params.get('tab'), TAB_KEYS, 'private');
   const q = params.get('q') ?? '';
   const tag = params.get('tag') ?? '';
   const status = pickEnum(params.get('status'), STATUS_KEYS, 'all');
@@ -62,26 +105,62 @@ export function LinksPage() {
 
   const summary = useResource(`summary:${app.version}`, (signal) => api.summary(signal));
   const tags = useResource(`tags:${app.version}`, (signal) => api.tags(signal));
-  const links = useResource(`links:${q}|${tag}|${status}|${sort}|${app.version}`, (signal) =>
-    api.links({ q, tag, status, sort }, signal),
-  );
+  const [blockedVersion, setBlockedVersion] = useState(0);
+  const blocked = useResource(`blocked:${blockedVersion}:${app.version}`, (signal) => api.blockedDomains('', signal));
+  const list = useLinkList({ visibility: tab, q, tag, status, sort }, app.version);
 
-  // Dev only: open an overlay from the URL once the data it needs has loaded.
+  const [moderation, setModeration] = useState<Moderation>(null);
+  const [blockedModal, setBlockedModal] = useState<BlockedModalState | null>(null);
+
+  const data = list.data?.visibility === tab ? list.data : null;
+  const firstPrivate = data?.visibility === 'private' ? (data.links[0] ?? null) : null;
+  const firstPublic = data?.visibility === 'public' ? (data.links[0] ?? null) : null;
+
+  // Dev only: open an overlay from the URL once the rows it needs have loaded.
   // In production applyListOverlay is a constant that returns true.
   const previewDone = useRef(false);
-  const firstLink = links.data?.links[0] ?? null;
   useEffect(() => {
-    if (!previewDone.current) previewDone.current = applyListOverlay(search, app, firstLink);
-  }, [search, firstLink, app]);
+    if (previewDone.current) return;
+    previewDone.current = applyListOverlay(
+      search,
+      {
+        ...app,
+        openPublicDelete: (link) => setModeration({ kind: 'delete', link, preview: true }),
+        openBlock: (host, forced) => setModeration({ kind: 'block', host, forced, preview: true }),
+        openBlocked: ({ query = '', forced }) => setBlockedModal({ query, forced }),
+      },
+      { privateLink: firstPrivate, publicLink: firstPublic },
+    );
+  }, [search, firstPrivate, firstPublic, app]);
 
+  // Automatic loading pauses after a failed page, and the toast says how to resume.
+  const { toast } = app;
+  useEffect(() => {
+    if (list.moreFailed) toast('More links could not be loaded. Press Load More to try again.');
+  }, [list.moreFailed, toast]);
+
+  const counts = list.counts;
   const forced = flags.loading || flags.error || flags.empty || flags.noResults;
-  const loading = flags.loading || (!forced && links.initial);
-  const failed = flags.error || (!forced && !loading && links.error !== null && links.data === null);
-  const total = flags.empty ? 0 : (links.data?.counts.private.total ?? 0);
-  const rows = flags.noResults ? [] : (links.data?.links ?? []);
+  const loading = flags.loading || (!forced && data === null && list.error === null);
+  const failed = flags.error || (!forced && data === null && list.error !== null);
+  const total = flags.empty ? 0 : (counts?.[tab].total ?? 0);
+  const rowsShown = data !== null && !flags.empty && !flags.noResults;
+  const rowCount = rowsShown ? data.links.length : 0;
   const empty = !loading && !failed && total === 0;
-  const noResults = !loading && !failed && total > 0 && rows.length === 0;
-  const normal = !loading && !failed && !empty;
+  const noResults = !loading && !failed && total > 0 && rowCount === 0;
+  const showRows = !loading && !failed && !empty && !noResults && rowsShown;
+
+  const privateTotal = counts?.private.total ?? 0;
+  const publicTotal = counts?.public.total ?? 0;
+  const emptyPrivatePreview = flags.empty && tab === 'private';
+  const settled = counts !== null && !flags.loading && !flags.error;
+  const showKpi = settled && privateTotal > 0 && !emptyPrivatePreview;
+  const showToolbar = settled && privateTotal + publicTotal > 0 && !emptyPrivatePreview;
+
+  const summaryData: Summary | null =
+    summary.data && flags.budgetShare !== null
+      ? { ...summary.data, publicClicksToday: Math.round(summary.data.publicDailyBudget * flags.budgetShare) }
+      : summary.data;
 
   const allTags = tags.data?.tags ?? [];
   const tagOptions: ReadonlyArray<readonly [string, string]> = [
@@ -93,12 +172,45 @@ export function LinksPage() {
   const resetFilters = () =>
     update({
       q: { value: '', fallback: '' },
-      tag: { value: '', fallback: '' },
+      ...(tab === 'private' ? { tag: { value: '', fallback: '' } } : {}),
       status: { value: 'all', fallback: 'all' },
     });
 
   const reload = () => {
-    links.reload();
+    list.reload();
+    summary.reload();
+  };
+
+  const paging: Paging = {
+    matching: flags.noResults ? 0 : (counts?.[tab].matching ?? 0),
+    total,
+    hasMore: flags.loadingMore || Boolean(data?.nextCursor),
+    loadingMore: flags.loadingMore || list.loadingMore,
+    paused: flags.loadingMore || list.moreFailed,
+    onLoadMore: flags.loadingMore ? () => undefined : list.loadMore,
+  };
+
+  const onPrivateToggled = (link: Link) => {
+    list.updatePrivate((links) => patchById(links, link.id, (old) => ({ ...old, ...link })));
+    summary.reload();
+  };
+
+  const onPublicUpdated = (link: PublicLinkItem) => {
+    list.updatePublic((links) => patchById(links, link.id, () => link));
+    summary.reload();
+  };
+
+  /** Marks loaded rows on the blocked domain, and switches them off when the block did. */
+  const onBlocked = (result: BlockDomainResult, disableActive: boolean) => {
+    const host = result.domain.host;
+    list.updatePublic((links) =>
+      links.map((link) => {
+        if (!isOnDomain(link.host, host)) return link;
+        const off = disableActive && link.isActive;
+        return { ...link, domainBlocked: true, ...(off ? { isActive: false, status: 'inactive' as const } : {}) };
+      }),
+    );
+    setBlockedVersion((v) => v + 1);
     summary.reload();
   };
 
@@ -120,9 +232,9 @@ export function LinksPage() {
         </Button>
       </div>
 
-      {normal && <KpiRow summary={summary.data} />}
+      {showKpi && <KpiRow summary={summaryData} />}
 
-      {normal && (
+      {showToolbar && (
         <div className={styles.toolbar}>
           <label className={styles.search}>
             <span className="visually-hidden">Search links</span>
@@ -157,26 +269,94 @@ export function LinksPage() {
             onChange={(value) => update({ sort: { value, fallback: 'newest' } })}
             defaultOpen={flags.sortOpen}
           />
+          <Button variant="secondary" className={styles.blockedButton} onClick={() => setBlockedModal({ query: '' })}>
+            <BlockIcon />
+            Blocked Domains
+            <span className={styles.pill}>{blocked.data ? formatNumber(blocked.data.total) : '…'}</span>
+          </Button>
         </div>
       )}
 
-      {loading && <LoadingPanel />}
-      {failed && <ErrorPanel error={links.error} onReload={reload} />}
-      {empty && <EmptyPanel onCreate={() => app.openCreate()} />}
-      {noResults && <NoResultsPanel onReset={resetFilters} />}
+      <div className={styles.tabRow}>
+        <LinkTabs
+          value={tab}
+          counts={counts}
+          onChange={(value) => update({ tab: { value, fallback: 'private' } })}
+        />
+        <span className={styles.tabDesc}>{TAB_DESCRIPTION[tab]}</span>
+      </div>
 
-      {normal && !noResults && (
-        <Panel aria-label="Links">
-          <PanelHeader>
-            <span>
-              {formatNumber(rows.length)} OF {formatNumber(total)} LINKS
-            </span>
-            <span>HUMAN CLICKS {'·'} 7 DAYS</span>
-          </PanelHeader>
-          {rows.map((link, index) => (
-            <LinkRow key={link.id} link={link} defaultMenuOpen={index === 0 && flags.menuOpen} />
+      <div id={TAB_PANEL_ID} role="tabpanel" aria-labelledby={tabId(tab)}>
+        {loading && <LoadingPanel />}
+        {failed && <ErrorPanel error={list.error} onReload={reload} />}
+        {empty && (tab === 'private' ? <EmptyPanel onCreate={() => app.openCreate()} /> : <PublicEmptyPanel />)}
+        {noResults &&
+          (tab === 'private' ? (
+            <NoResultsPanel onReset={resetFilters} />
+          ) : (
+            <PublicNoResultsPanel onReset={resetFilters} />
           ))}
-        </Panel>
+        {showRows && data?.visibility === 'private' && (
+          <PrivateTable links={data.links} paging={paging} onToggled={onPrivateToggled} menuOpenFirst={flags.menuOpen} />
+        )}
+        {showRows && data?.visibility === 'public' && (
+          <PublicTable
+            links={
+              flags.menuBlocked
+                ? data.links.map((link, index) => (index === 0 ? { ...link, domainBlocked: true } : link))
+                : data.links
+            }
+            paging={paging}
+            tagFiltered={tag !== ''}
+            onUpdated={onPublicUpdated}
+            onBlock={(link) => setModeration({ kind: 'block', host: link.host })}
+            onShowBlocked={(host) => setBlockedModal({ query: host })}
+            onDelete={(link) => setModeration({ kind: 'delete', link })}
+            menuOpenFirst={flags.menuOpen}
+          />
+        )}
+      </div>
+
+      {moderation?.kind === 'delete' && (
+        <PublicDeleteDialog
+          link={moderation.link}
+          preview={moderation.preview}
+          onClose={() => setModeration(null)}
+          onDeleted={(id) => {
+            setModeration(null);
+            list.remove(id);
+            summary.reload();
+          }}
+          onDisabled={(link) => {
+            setModeration(null);
+            onPublicUpdated(link);
+          }}
+        />
+      )}
+      {moderation?.kind === 'block' && (
+        <BlockDomainDialog
+          host={moderation.host}
+          forced={moderation.forced}
+          preview={moderation.preview}
+          onClose={() => setModeration(null)}
+          onBlocked={(result, disableActive) => {
+            setModeration(null);
+            onBlocked(result, disableActive);
+          }}
+        />
+      )}
+      {blockedModal && (
+        <BlockedDomainsModal
+          initialQuery={blockedModal.query}
+          forced={blockedModal.forced}
+          onClose={(changed) => {
+            setBlockedModal(null);
+            // Another entry may still cover a host, so the rows come fresh from the API.
+            if (changed && tab === 'public') list.reload();
+          }}
+          onBlocked={onBlocked}
+          onRemoved={() => setBlockedVersion((v) => v + 1)}
+        />
       )}
     </>
   );
@@ -184,7 +364,7 @@ export function LinksPage() {
 
 function KpiRow({ summary }: { summary: Summary | null }) {
   const value = (n: number | undefined) => (n === undefined ? '…' : formatNumber(n));
-  const range = summary ? formatDateRange(summary.windowStart, summary.windowEnd) : ' ';
+  const range = summary ? formatDateRange(summary.windowStart, summary.windowEnd) : ' ';
   return (
     <div className={styles.kpis}>
       <KpiCard label="ACTIVE LINKS" value={value(summary?.active)} foot={`of ${value(summary?.total)} saved links`} />
@@ -209,82 +389,11 @@ function KpiRow({ summary }: { summary: Summary | null }) {
         }
         foot={summary?.top ? `${summary.top.title} · human clicks` : 'No human clicks in the last 7 days'}
       />
+      <BudgetKpi
+        used={summary?.publicClicksToday}
+        budget={summary?.publicDailyBudget}
+        publicTotal={summary?.publicTotal}
+      />
     </div>
-  );
-}
-
-function LoadingPanel() {
-  return (
-    <Panel aria-busy="true" aria-label="Loading links">
-      <PanelHeader>LOADING LINKS</PanelHeader>
-      {[1, 2, 3, 4, 5].map((n) => (
-        // Same columns and heights as LinkRow, so nothing moves when rows arrive.
-        <div key={n} className={styles.skeletonRow}>
-          <span className={styles.slugCell}>
-            <Skeleton width={64} height={23} />
-            <span className={styles.slugLine}>
-              <Skeleton width={144} height={36} radius={8} />
-              <Skeleton width={36} height={36} radius={10} tone={2} />
-            </span>
-            <Skeleton width={110} height={16} tone={2} />
-          </span>
-          <span className={styles.skeletonText}>
-            <Skeleton width="45%" height={14} />
-            <Skeleton width="75%" height={12} tone={2} />
-          </span>
-          <span className={styles.clicks}>
-            <Skeleton width={44} height={24} />
-            <Skeleton width={36} height={12} tone={2} />
-          </span>
-          <span className={styles.actions}>
-            <Skeleton width={184} height={40} radius={12} tone={2} />
-          </span>
-        </div>
-      ))}
-    </Panel>
-  );
-}
-
-function ErrorPanel({ error, onReload }: { error: unknown; onReload: () => void }) {
-  const status = error instanceof ApiError && error.status >= 500 ? error.status : 503;
-  return (
-    <Panel role="alert" className={cx(styles.statePanel, styles.stateStart)}>
-      <Badge tone="danger" size="md">
-        ERROR {'·'} {status}
-      </Badge>
-      <h2 className={styles.h2}>Links failed to load</h2>
-      <p className={cx(styles.stateText, styles.stateTextWide)}>
-        The server did not respond within 10 seconds. Short links keep working for visitors. Check your internet
-        connection, then reload the page.
-      </p>
-      <Button variant="secondary" size="md" onClick={onReload}>
-        Reload
-      </Button>
-    </Panel>
-  );
-}
-
-function EmptyPanel({ onCreate }: { onCreate: () => void }) {
-  return (
-    <Panel className={cx(styles.statePanel, styles.stateCenter)}>
-      <GateTile slug="_ _ _" variant="empty" />
-      <h2 className={styles.h2}>No links yet</h2>
-      <p className={styles.stateText}>The first link will appear here with its click count, status, and QR code.</p>
-      <Button variant="primary" onClick={onCreate}>
-        Create First Link
-      </Button>
-    </Panel>
-  );
-}
-
-function NoResultsPanel({ onReset }: { onReset: () => void }) {
-  return (
-    <Panel className={cx(styles.statePanel, styles.stateCenter, styles.stateNoResults)}>
-      <h2 className={cx(styles.h2, styles.h2Small)}>No matching links</h2>
-      <p className={cx(styles.stateText, styles.stateTextSmall)}>Try another keyword or reset the tag and status filters.</p>
-      <Button variant="secondary" size="md" onClick={onReset}>
-        Reset Filters
-      </Button>
-    </Panel>
   );
 }

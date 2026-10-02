@@ -97,3 +97,19 @@ export function downloadFile(href: string, fileName: string): void {
 export function qrFileName(slug: string, kind: 'png' | 'svg'): string {
   return `daffa-me-${slug}.${kind}`;
 }
+
+/**
+ * Saves the code as a 1024 px SVG or a PNG with a 4 module quiet zone, named
+ * like daffa-me-cv.png. Returns the file name for the confirmation toast.
+ */
+export function downloadQr(slug: string, kind: 'png' | 'svg', matrix: QrMatrix): string {
+  const name = qrFileName(slug, kind);
+  if (kind === 'svg') {
+    const url = URL.createObjectURL(new Blob([qrSvgFile(matrix)], { type: 'image/svg+xml' }));
+    downloadFile(url, name);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } else {
+    downloadFile(qrPngDataUrl(matrix), name);
+  }
+  return name;
+}

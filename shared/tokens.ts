@@ -45,12 +45,22 @@ export const COLORS = {
   '--skeleton-2': '#D6DCE4',
   '--qr-bg': '#FFFFFF',
 
+  // The public page: the locked slug field, the Turnstile slot, the retry
+  // panel, and the labels on the dark countdown tiles.
+  '--locked-bg': '#DADFE6',
+  '--turnstile-bg': '#EEF1F4',
+  '--danger-wash': '#F3E2E2',
+  '--tile-label': '#B7BEC9',
+
   // Overlay scrims, the chart area fill, and text on colored surfaces.
   '--scrim-form': 'rgba(20,23,28,0.45)',
   '--scrim-qr': 'rgba(20,23,28,0.5)',
   '--scrim-delete': 'rgba(20,23,28,0.55)',
   '--chart-area': 'rgba(20,23,28,0.07)',
   '--on-color': '#FFFFFF',
+  '--chain-groove': 'rgba(60,68,82,0.45)',
+  '--chain-groove-hi': 'rgba(255,255,255,0.7)',
+  '--spinner-track': 'rgba(20,23,28,0.25)',
 } as const;
 
 /**
@@ -74,6 +84,20 @@ export const SHADOWS = {
   '--drawer': '-8px 0 24px rgba(20,23,28,0.25)',
   '--sign-active': 'inset 3px 3px 6px #B89400,inset -3px -3px 6px #FFE36B',
   '--danger-active': 'inset 3px 3px 6px #8E1C1C,inset -2px -2px 5px #E25555',
+  /** A shallower, darker inset for a field that cannot be edited. */
+  '--locked-inset': 'inset 2px 2px 4px #B8C0CC,inset -2px -2px 4px #F2F4F7',
+  /** The budget meter track. */
+  '--meter-inset': 'inset 2px 2px 4px #B8C0CC,inset -2px -2px 4px #FFFFFF',
+  '--chain-ring': '6px 7px 12px #AAB2BE,-6px -6px 12px #FFFFFF,inset 4px 4px 7px #B8C0CC,inset -4px -4px 7px #FFFFFF',
+  '--chain-bar':
+    '4px 5px 8px rgba(120,130,146,0.55),-3px -3px 6px rgba(255,255,255,0.9),inset 0 1px 0 rgba(255,255,255,0.9)',
+} as const;
+
+/** The polished silver of the chain hero on the public page. */
+export const GRADIENTS = {
+  '--silver-ring':
+    'linear-gradient(155deg,#FFFFFF 0%,#DCE1E7 24%,#A1AAB7 48%,#F4F6F8 66%,#ABB3BF 86%,#E6E9ED 100%)',
+  '--silver-bar': 'linear-gradient(180deg,#FFFFFF 0%,#D5DAE1 30%,#98A1AE 58%,#C9CFD7 78%,#EEF1F4 100%)',
 } as const;
 
 export const FONTS = {
@@ -84,9 +108,9 @@ export const FONTS = {
   '--mono-system': 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace',
 } as const;
 
-export type TokenName = keyof typeof COLORS | keyof typeof SHADOWS | keyof typeof FONTS;
+export type TokenName = keyof typeof COLORS | keyof typeof SHADOWS | keyof typeof GRADIENTS | keyof typeof FONTS;
 
-const ALL: Record<string, string> = { ...COLORS, ...SHADOWS, ...FONTS };
+const ALL: Record<string, string> = { ...COLORS, ...SHADOWS, ...GRADIENTS, ...FONTS };
 
 export function tokenValue(name: TokenName): string {
   const value = ALL[name];

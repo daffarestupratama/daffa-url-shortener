@@ -6,7 +6,9 @@
  * migrated, seeded local database. Exercises every owner endpoint under
  * /api/admin, the public endpoint under /api/public, every CSRF case, the
  * path from the redirector to the dashboard through the shared D1 state,
- * every public link page at the redirector, and the daily cron. Counters and
+ * every public link page at the redirector, and the daily cron. It also walks
+ * both dashboard tabs page by page the way the client does, and checks that
+ * every client address serves the single page document. Counters and
  * fixtures are read and set in the local database through wrangler, never the
  * remote one. Prints PASS or FAIL per check, removes every link it creates,
  * restores every counter it changes, and exits 1 on any failure.
@@ -590,6 +592,7 @@ async function main() {
 
   await pagination();
   await tabs();
+  await clientContract();
 
   // Public creation spends the hourly counters. They are restored afterwards,
   // whatever happens, so the run leaves the local limits as it found them.
@@ -604,6 +607,90 @@ async function main() {
 
   await cron();
   await staticFiles();
+  await clientRoutes();
+}
+
+/**
+ * The requests the dashboard client makes, in the order it makes them: the
+ * first page of a tab without any parameter but the tab, then nextCursor
+ * until it runs out. The public tab gets 30 extra rows here, so the walk
+ * crosses a page boundary on every sort, as infinite scroll does.
+ */
+async function clientContract() {
+  section('Client contract, dashboard lists');
+  const first = await api('GET', '/api/admin/links');
+  const body = first.json ?? {};
+  check(
+    'the plain first page is the private tab, with a cursor field and the counts of both tabs',
+    first.status === 200 &&
+      body.visibility === 'private' &&
+      'nextCursor' in body &&
+      ['private', 'public'].every((tab) => Number.isInteger(body.counts?.[tab]?.matching) && Number.isInteger(body.counts?.[tab]?.total)),
+    JSON.stringify(body.counts),
+  );
+
+  const stem = `${RUN}-pub`;
+  const base = Date.now() - 300 * DAY;
+  const day = utcToday();
+  const values = Array.from({ length: 30 }, (_, i) => {
+    const slug = `${stem}${String(i).padStart(2, '0')}`;
+    // Pairs of equal totals and creation times, so ties on the sort key are broken by id.
+    const createdAt = base + Math.floor(i / 2) * 1000;
+    return `('${slug}', 'https://example.com/${slug}', 'example.com', '', 1, NULL, ${createdAt}, ${createdAt}, 1, ${(i % 15) * 10}, ${day}, ${i % 3})`;
+  });
+  await d1Local(
+    'INSERT INTO links (slug, url, title, description, is_active, expires_at, created_at, updated_at, is_public, click_total, click_day, click_today) VALUES ' +
+      `${values.join(',\n')};`,
+  );
+  try {
+    const orders = [
+      ['newest', (l) => l.createdAt, 'desc'],
+      ['oldest', (l) => l.createdAt, 'asc'],
+      ['clicks', (l) => l.clickTotal, 'desc'],
+      ['least', (l) => l.clickTotal, 'asc'],
+    ];
+    for (const [sort, key, direction] of orders) {
+      const walk = await listAll(`visibility=public&q=${stem}&sort=${sort}`);
+      const ids = walk.links.map((l) => l.id);
+      check(`public sort=${sort}: 30 links come in pages of 25 and 5`, walk.pages.join() === '25,5', walk.pages.join());
+      check(
+        `public sort=${sort}: no link twice, and the rows loaded equal counts.public.matching`,
+        new Set(ids).size === ids.length && ids.length === walk.counts?.public?.matching,
+        `${ids.length} rows, matching ${walk.counts?.public?.matching}`,
+      );
+      check(`public sort=${sort}: ordered on the sort key, then id`, inOrder(walk.links, key, direction));
+    }
+    const tagged = await listAll(`visibility=public&q=${stem}&tag=career`);
+    check('a tag sent with the public tab changes nothing on it', tagged.links.length === 30 && tagged.counts?.public?.matching === 30);
+  } finally {
+    await d1Local(`DELETE FROM links WHERE slug LIKE '${stem}%';`);
+  }
+}
+
+/**
+ * link.daffa.me serves one index.html for every path, and the client decides
+ * what to show. Each address the client knows must come back as that document.
+ */
+async function clientRoutes() {
+  section('Client routes');
+  const paths = ['/', '/dashboard', '/dashboard/', '/dashboard/links/1', '/links/1', '/some/unknown'];
+  for (const path of paths) {
+    const response = await fetch(`${DASHBOARD}${path}`, { headers: { Accept: 'text/html' } });
+    const html = await response.text();
+    check(
+      `${path} serves the single page document`,
+      response.status === 200 &&
+        (response.headers.get('content-type') ?? '').includes('text/html') &&
+        html.includes('<div id="root">') &&
+        html.includes('<title>daffa.me · Free short links with QR code</title>'),
+      `status ${response.status}`,
+    );
+  }
+  const root = await fetch(`${DASHBOARD}/`, { headers: { Accept: 'text/html' } }).then((r) => r.text());
+  check(
+    'the document carries the development Turnstile site key',
+    root.includes('<meta name="turnstile-site-key" content="1x00000000000000000000AA" />'),
+  );
 }
 
 /** 00:00 UTC of today, the day public click counters belong to. */

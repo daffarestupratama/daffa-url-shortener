@@ -1,0 +1,21 @@
+.svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.modules { fill: var(--ink); }
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  font: 500 13px var(--font);
+  color: var(--ink2);
+}
+
+/* The QR modal uses 14px, the 200 px result card 13px, as in the design. */
+.loadingLarge {
+  composes: loading;
+  font-size: 14px;
+}
