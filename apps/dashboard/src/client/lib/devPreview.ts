@@ -12,6 +12,9 @@
  *   /dashboard/links/1?state=loading | error | empty | notfound | flat
  *   /dashboard/links/1?overlay=edit | qr | delete | toast
  *
+ * Nothing a preview opens changes data: every dialog, drawer and modal gets
+ * preview: true, so its confirm button only closes it.
+ *
  * Every state name and every preview value lives in this module. Pages only
  * read the flags it returns, and preview.ts only reaches this module behind
  * import.meta.env.DEV, which Vite replaces with false in a build. The whole
@@ -54,12 +57,16 @@ interface LinkRef {
   title: string;
 }
 
+interface Preview {
+  preview?: boolean;
+}
+
 /** The parts of the app API the preview drives. */
 export interface PreviewActions {
-  openCreate: (seed?: { url?: string; slug?: string; tried?: boolean }) => void;
-  openEdit: (link: Link) => void;
+  openCreate: (seed?: { url?: string; slug?: string; tried?: boolean } & Preview) => void;
+  openEdit: (link: Link, seed?: Preview) => void;
   openQr: (link: LinkRef) => void;
-  openDelete: (link: LinkRef) => void;
+  openDelete: (link: LinkRef, options?: Preview) => void;
   toast: (message: string, options?: { sticky?: boolean }) => void;
 }
 
@@ -67,7 +74,7 @@ export interface PreviewActions {
 export interface ModerationPreviewActions {
   openPublicDelete: (link: PublicLinkItem) => void;
   openBlock: (host: string, forced?: BlockedDomainCheck) => void;
-  openBlocked: (options: { query?: string; forced?: BlockedDomainList }) => void;
+  openBlocked: (options: { query?: string; forced?: BlockedDomainList } & Preview) => void;
 }
 
 /** The first row of each tab, once loaded. Null until then, or when the tab is not shown. */
@@ -119,8 +126,8 @@ export function detailFlags(search: string): DetailFlags {
 /**
  * Opens the overlay named in the URL on the list page. Returns false while it
  * still needs a first row to load, true once handled or when there is nothing
- * to do. Moderation overlays opened here never change data: their confirm
- * buttons only close them.
+ * to do. Nothing opened here changes data: every dialog, drawer and modal
+ * gets preview: true, so its confirm button only closes it.
  */
 export function applyListOverlay(
   search: string,
@@ -131,31 +138,31 @@ export function applyListOverlay(
   const pub = first.publicLink;
   switch (overlay) {
     case 'create':
-      actions.openCreate();
+      actions.openCreate({ preview: true });
       return true;
     case 'create-errors':
       // Both field errors at once: an invalid URL and a reserved slug.
-      actions.openCreate({ url: 'not a url', slug: 'admin', tried: true });
+      actions.openCreate({ url: 'not a url', slug: 'admin', tried: true, preview: true });
       return true;
     case 'create-ok':
       // A free slug, confirmed by the availability check.
-      actions.openCreate({ url: 'https://example.com/talk-2026', slug: 'talk-2026' });
+      actions.openCreate({ url: 'https://example.com/talk-2026', slug: 'talk-2026', preview: true });
       return true;
     case 'create-url':
       // No scheme typed, so the field shows the "Saved as" preview.
-      actions.openCreate({ url: 'example.com/talk-2026', slug: 'talk-2026' });
+      actions.openCreate({ url: 'example.com/talk-2026', slug: 'talk-2026', preview: true });
       return true;
     case 'toast':
       actions.toast('daffa.me/cv copied to clipboard', { sticky: true });
       return true;
     case 'blocked':
-      actions.openBlocked({});
+      actions.openBlocked({ preview: true });
       return true;
     case 'blocked-empty':
-      actions.openBlocked({ forced: { domains: [], total: 0 } });
+      actions.openBlocked({ forced: { domains: [], total: 0 }, preview: true });
       return true;
     case 'blocked-nomatch':
-      actions.openBlocked({ query: 'no-such-domain.example' });
+      actions.openBlocked({ query: 'no-such-domain.example', preview: true });
       return true;
     case 'edit':
     case 'qr':
@@ -163,9 +170,9 @@ export function applyListOverlay(
       const link = first.privateLink;
       if (!link) return false;
       const ref = { id: link.id, slug: link.slug, title: link.title };
-      if (overlay === 'edit') actions.openEdit(link);
+      if (overlay === 'edit') actions.openEdit(link, { preview: true });
       else if (overlay === 'qr') actions.openQr(ref);
-      else actions.openDelete(ref);
+      else actions.openDelete(ref, { preview: true });
       return true;
     }
     case 'public-qr':
@@ -199,9 +206,9 @@ export function applyDetailOverlay(search: string, actions: PreviewActions, link
   if (overlay !== 'edit' && overlay !== 'qr' && overlay !== 'delete' && overlay !== 'toast') return true;
   if (!link) return false;
   const ref = { id: link.id, slug: link.slug, title: link.title };
-  if (overlay === 'edit') actions.openEdit(link);
+  if (overlay === 'edit') actions.openEdit(link, { preview: true });
   else if (overlay === 'qr') actions.openQr(ref);
-  else if (overlay === 'delete') actions.openDelete(ref);
+  else if (overlay === 'delete') actions.openDelete(ref, { preview: true });
   else actions.toast(`daffa.me/${link.slug} copied to clipboard`, { sticky: true });
   return true;
 }

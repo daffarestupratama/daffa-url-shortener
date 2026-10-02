@@ -119,6 +119,389 @@
   text-wrap: pretty;
 }
 
+.heroGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  align-items: center;
+  gap: 24px 40px;
+}
+
+.heroArt {
+  display: flex;
+  justify-content: center;
+}
+
+/* Form -------------------------------------------------------------------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: clamp(14px, 3cqw, 32px);
+  border-radius: 20px;
+  background: var(--bg);
+  box-shadow: var(--raise-lg);
+}
+
+.formHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.formKicker {
+  font: 700 12px/1 var(--font);
+  letter-spacing: 0.16em;
+  color: var(--ink2);
+}
+
+.formNote {
+  flex: 1 1 260px;
+  font: 400 13px/1.4 var(--font);
+  color: var(--ink2);
+  text-align: right;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Scoped under .form so they win over the shared field styles in any CSS order. */
+.form .urlInput {
+  height: 52px;
+  font-size: 16px;
+}
+.form .urlInput:disabled { opacity: 0.6; }
+
+/* The locked slug: dashed border, a darker shallow inset, muted text, a lock. */
+.slugRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.slugBox {
+  display: flex;
+  flex: 1 1 220px;
+  align-items: center;
+  min-width: 0;
+  height: 52px;
+  overflow: hidden;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-12);
+  background: var(--locked-bg);
+  box-shadow: var(--locked-inset);
+  cursor: not-allowed;
+}
+
+.slugPrefix {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 100%;
+  padding: 0 10px 0 14px;
+  border-right: 1px solid var(--hair);
+  font: 500 16px var(--mono);
+  color: var(--ink2);
+}
+
+.slugInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  font: 700 16px var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--ink2);
+  -webkit-text-fill-color: var(--ink2);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.lock {
+  flex: none;
+  margin-right: 14px;
+  color: var(--ink2);
+}
+
+.slugRow .generate { height: 52px; }
+.slugRow .generate:disabled { opacity: 0.6; }
+
+.submitRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hair);
+}
+
+.submitRow .submit {
+  flex: 0 1 auto;
+  height: 56px;
+  padding: 0 28px;
+  font-size: 17px;
+}
+
+/* Busy looks pressed, not faded. */
+.submitRow .submitBusy:disabled {
+  opacity: 1;
+  box-shadow: var(--sign-active);
+  cursor: progress;
+}
+
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid var(--spinner-track);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* The area reserved for Cloudflare Turnstile. The outline sits outside the
+   300 x 65 box, so the widget fills the box exactly and the border stays
+   visible around it. */
+.tsField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+}
+.tsField > [role='alert'] { max-width: 300px; }
+
+.tsSlot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 300px;
+  max-width: 100%;
+  height: 65px;
+  border-radius: 6px;
+  background: var(--turnstile-bg);
+  outline: 1px dashed var(--line);
+}
+.tsSlotError { outline: 2px dashed var(--danger); }
+
+.tsPlaceholder {
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.12em;
+  color: var(--ink2);
+  white-space: nowrap;
+}
+.tsPlaceholderError { color: var(--danger); }
+
+.tsHost {
+  position: absolute;
+  inset: 0;
+}
+
+.retry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 16px;
+  border: 1px solid var(--danger);
+  border-radius: var(--r-12);
+  background: var(--danger-wash);
+}
+
+.retryText {
+  flex: 1 1 260px;
+  font: 500 15px/1.5 var(--font);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.retryButton { flex: none; }
+
+/* Result card ---------------------------------------------------------------- */
+
+.result {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  align-items: center;
+  gap: 28px 40px;
+  padding: clamp(16px, 3cqw, 32px);
+  border-radius: 20px;
+  background: var(--bg);
+  box-shadow: var(--raise-lg);
+}
+
+.resultMain {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.resultHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.resultTitle {
+  margin: 0;
+  font: 700 12px/1 var(--font);
+  letter-spacing: 0.16em;
+  color: var(--ink2);
+}
+
+.resultLink {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.destination {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.destinationLabel {
+  font: 700 11px/1 var(--font);
+  letter-spacing: 0.16em;
+  color: var(--ink2);
+}
+
+.destinationHost {
+  font: 800 19px/1.3 var(--font);
+  overflow-wrap: anywhere;
+}
+
+.destinationUrl {
+  font: 400 14px/1.5 var(--mono);
+  color: var(--link);
+  overflow-wrap: anywhere;
+}
+
+.resultNote {
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--hair);
+  font: 400 14px/1.55 var(--font);
+  color: var(--ink2);
+  text-wrap: pretty;
+}
+
+.resultQr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.qrBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 20px;
+  border-radius: var(--r-12);
+  background: var(--qr-bg);
+}
+
+.qrCaption {
+  font: 500 12px/1.3 var(--mono);
+  color: var(--ink);
+}
+
+.qrButtons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 280px;
+}
+.qrButtons > button {
+  padding: 0 10px;
+  font-size: 15px;
+}
+
+/* Rate limit dialogs ------------------------------------------------------------- */
+
+.rateDialog {
+  width: min(460px, 100%);
+  gap: 18px;
+  padding: 26px;
+}
+
+.badgeStart { align-self: flex-start; }
+
+.rateTitle {
+  margin: 0;
+  font: 800 22px/1.25 var(--font);
+  text-wrap: balance;
+}
+
+.rateText {
+  margin: 0;
+  font: 400 15px/1.55 var(--font);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+/* The countdown board: the convex dark surface of the gate tile. */
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.boardTile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--r-12);
+  background: linear-gradient(145deg, var(--tile-hi), var(--tile-lo));
+  box-shadow: var(--tile-in);
+}
+
+.boardLabel {
+  font: 700 11px/1 var(--font);
+  letter-spacing: 0.16em;
+  color: var(--tile-label);
+}
+
+.boardRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.boardValue {
+  font: 700 30px/1 var(--mono);
+  color: var(--sign);
+  font-variant-numeric: tabular-nums;
+}
+
+.boardUnit {
+  font: 700 13px/1 var(--mono);
+  color: var(--tile-label);
+}
+
 /* Footer ------------------------------------------------------------------ */
 
 .footer {

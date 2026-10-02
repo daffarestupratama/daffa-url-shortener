@@ -99,7 +99,11 @@
   box-shadow: var(--raise-sm);
 }
 
+/* Options grow only when the control wraps onto more rows than one: then each
+   row fills the pill container instead of leaving a gap at its end. On one row
+   the control is exactly as wide as its options, so nothing grows. */
 .segment {
+  flex: 1 1 auto;
   height: 40px;
   padding: 0 16px;
   border: 0;

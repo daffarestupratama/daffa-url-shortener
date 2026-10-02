@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, SegmentedControl } from '../../components/controls';
 import { BlockIcon, SearchIcon } from '../../components/Icons';
 import { KpiCard } from '../../components/surfaces';
-import { GateTile } from '../../components/tiles';
+import { GateTile, Kicker } from '../../components/tiles';
 import { api } from '../../lib/api';
 import { formatDateRange, formatNumber } from '../../lib/format';
 import { applyListOverlay, listFlags } from '../../lib/preview';
@@ -77,6 +77,7 @@ type Moderation =
 interface BlockedModalState {
   query: string;
   forced?: BlockedDomainList;
+  preview?: boolean;
 }
 
 export function LinksPage() {
@@ -127,7 +128,7 @@ export function LinksPage() {
         ...app,
         openPublicDelete: (link) => setModeration({ kind: 'delete', link, preview: true }),
         openBlock: (host, forced) => setModeration({ kind: 'block', host, forced, preview: true }),
-        openBlocked: ({ query = '', forced }) => setBlockedModal({ query, forced }),
+        openBlocked: ({ query = '', forced, preview }) => setBlockedModal({ query, forced, preview }),
       },
       { privateLink: firstPrivate, publicLink: firstPublic },
     );
@@ -349,6 +350,7 @@ export function LinksPage() {
         <BlockedDomainsModal
           initialQuery={blockedModal.query}
           forced={blockedModal.forced}
+          preview={blockedModal.preview}
           onClose={(changed) => {
             setBlockedModal(null);
             // Another entry may still cover a host, so the rows come fresh from the API.
@@ -362,38 +364,55 @@ export function LinksPage() {
   );
 }
 
+/**
+ * Two captioned groups. The first four figures come from the clicks table,
+ * which only private links fill. Public links keep counters only, so their
+ * card sits under its own caption and is never read as part of the others.
+ */
 function KpiRow({ summary }: { summary: Summary | null }) {
   const value = (n: number | undefined) => (n === undefined ? '…' : formatNumber(n));
   const range = summary ? formatDateRange(summary.windowStart, summary.windowEnd) : ' ';
   return (
-    <div className={styles.kpis}>
-      <KpiCard label="ACTIVE LINKS" value={value(summary?.active)} foot={`of ${value(summary?.total)} saved links`} />
-      <KpiCard label={`HUMAN CLICKS · 7 DAYS`} value={value(summary?.human7d)} foot={range} />
-      <KpiCard
-        label={`UNIQUE VISITORS · 7 DAYS`}
-        value={value(summary?.unique7d)}
-        tone="link"
-        foot="based on IP address and device"
-      />
-      <KpiCard
-        label={`MOST CLICKED · 7 DAYS`}
-        value={
-          summary?.top ? (
-            <span className={styles.topRow}>
-              <GateTile slug={summary.top.slug} variant="kpi" />
-              <span className={styles.topClicks}>{formatNumber(summary.top.clicks)}</span>
-            </span>
-          ) : (
-            <span className={styles.topClicks}>{summary ? '0' : '…'}</span>
-          )
-        }
-        foot={summary?.top ? `${summary.top.title} · human clicks` : 'No human clicks in the last 7 days'}
-      />
-      <BudgetKpi
-        used={summary?.publicClicksToday}
-        budget={summary?.publicDailyBudget}
-        publicTotal={summary?.publicTotal}
-      />
+    <div className={styles.kpiGroups}>
+      <div role="group" aria-labelledby="kpi-private" className={styles.kpiPrivate}>
+        <span id="kpi-private">
+          <Kicker>PRIVATE LINKS</Kicker>
+        </span>
+        <div className={styles.kpis}>
+          <KpiCard label="ACTIVE LINKS" value={value(summary?.active)} foot={`of ${value(summary?.total)} saved links`} />
+          <KpiCard label={`HUMAN CLICKS · 7 DAYS`} value={value(summary?.human7d)} foot={range} />
+          <KpiCard
+            label={`UNIQUE VISITORS · 7 DAYS`}
+            value={value(summary?.unique7d)}
+            tone="link"
+            foot="based on IP address and device"
+          />
+          <KpiCard
+            label={`MOST CLICKED · 7 DAYS`}
+            value={
+              summary?.top ? (
+                <span className={styles.topRow}>
+                  <GateTile slug={summary.top.slug} variant="kpi" />
+                  <span className={styles.topClicks}>{formatNumber(summary.top.clicks)}</span>
+                </span>
+              ) : (
+                <span className={styles.topClicks}>{summary ? '0' : '…'}</span>
+              )
+            }
+            foot={summary?.top ? `${summary.top.title} · human clicks` : 'No human clicks in the last 7 days'}
+          />
+        </div>
+      </div>
+      <div role="group" aria-labelledby="kpi-public" className={styles.kpiPublic}>
+        <span id="kpi-public">
+          <Kicker>PUBLIC LINKS</Kicker>
+        </span>
+        <BudgetKpi
+          used={summary?.publicClicksToday}
+          budget={summary?.publicDailyBudget}
+          publicTotal={summary?.publicTotal}
+        />
+      </div>
     </div>
   );
 }

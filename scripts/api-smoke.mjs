@@ -22,6 +22,7 @@
  */
 
 import { randomInt } from 'node:crypto';
+import { importTs } from './bundle.mjs';
 import { d1Local } from './d1.mjs';
 
 const DASHBOARD = process.env.SMOKE_DASHBOARD ?? 'http://localhost:5173';
@@ -593,6 +594,7 @@ async function main() {
   await pagination();
   await tabs();
   await clientContract();
+  await clientPublicContract();
 
   // Public creation spends the hourly counters. They are restored afterwards,
   // whatever happens, so the run leaves the local limits as it found them.
@@ -1067,8 +1069,46 @@ async function publicCreation() {
     crowded.status === 429 && errorCode(crowded) === 'rate_limited_global' && crowded.json?.error?.resetAt === nextHour,
     `status ${crowded.status}, ${JSON.stringify(crowded.json?.error)}`,
   );
+  const crowdedRetry = Number(crowded.headers.get('retry-after'));
+  check('it carries Retry-After to the next hour as well', Math.abs(crowdedRetry - Math.ceil((nextHour - Date.now()) / 1000)) <= 2, String(crowdedRetry));
   const full = await rateCounts();
   check('the refused request was not counted', full.global === 30 && full.visitors.length === 0, JSON.stringify(full));
+}
+
+/**
+ * The public page checks a destination itself before it spends a Turnstile
+ * token, and shows the server's message for whatever it lets through. Both
+ * must agree word for word, or the field would show two different texts for
+ * the same mistake.
+ */
+async function clientPublicContract() {
+  section('Client contract, public page');
+  const { checkPublicUrl, blockedDomainMessage } = await importTs('shared/url.ts');
+  const samples = [
+    '',
+    `https://example.org/${'a'.repeat(2100)}`,
+    'docs google com/forms/rsvp',
+    'http://192.168.1.10/admin',
+    'https://daffa.me/cv',
+    'link.daffa.me',
+    'bit.ly/3xYz9Qa',
+  ];
+  for (const url of samples) {
+    const local = checkPublicUrl(url);
+    const result = await publicCreate({ url, turnstileToken: DUMMY_TOKEN });
+    const error = result.json?.error;
+    check(
+      `the page and the server agree on "${url.length > 40 ? `${url.slice(0, 37)}...` : url}"`,
+      result.status === 400 && error?.code === 'invalid_url' && error?.reason === local?.code && error?.message === local?.message,
+      `server ${JSON.stringify(error)}, page ${JSON.stringify(local)}`,
+    );
+  }
+  const blocked = await publicCreate({ url: 'https://promo.grabgift-promo.com/x', turnstileToken: DUMMY_TOKEN });
+  check(
+    'a blocked domain message names the host, in the shared wording the page shows',
+    errorCode(blocked) === 'blocked_domain' && blocked.json?.error?.message === blockedDomainMessage('promo.grabgift-promo.com'),
+    JSON.stringify(blocked.json?.error),
+  );
 }
 
 /** Enable, disable and delete, and the wall between public and private routes. */

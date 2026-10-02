@@ -1,0 +1,131 @@
+/* The silver chain hero of Halaman Publik.dc.html. The design positions every
+   part on a 560 x 150 grid and converts with U(p) = p / 5.6 cqw, so all sizes
+   below are those units against the hero box, which is the size container. */
+
+.hero {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 560 / 150;
+  container-type: inline-size;
+}
+
+.float {
+  position: absolute;
+  inset: 0;
+  animation: chFloat 9s ease-in-out infinite;
+}
+
+/* Rings, caps and bars all position against .float. */
+.group { display: contents; }
+
+/* Face on rings: a silver border around the page background. */
+.ring {
+  position: absolute;
+  top: 5.714cqw;
+  width: 26.786cqw;
+  height: 15.357cqw;
+  border: 3.036cqw solid transparent;
+  border-radius: var(--r-pill);
+  background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--silver-ring) border-box;
+  background-size: 100% 100%, 240% 240%;
+  box-shadow: var(--chain-ring);
+  animation: chRock 7s ease-in-out infinite, chSheen 10s ease-in-out infinite;
+}
+
+/* The left rim of a ring again, drawn above the bar that enters it, so each
+   bar passes over one rim and under the next. */
+.cap {
+  box-shadow: none;
+  clip-path: inset(26% calc(100% - 3.393cqw) 26% 0);
+}
+
+/* The transforms are the static frame. While the animation runs it overrides them. */
+.r0 {
+  left: 6.25cqw;
+  z-index: 0;
+  transform: rotate(-2deg);
+}
+.r1 {
+  left: 36.607cqw;
+  z-index: 2;
+  transform: rotate(2deg);
+  animation-delay: -3.5s, -2s;
+}
+.r2 {
+  left: 66.964cqw;
+  z-index: 4;
+  transform: rotate(-2deg);
+  animation-delay: -7s, -4s;
+}
+.r1.cap { z-index: 4; }
+.r2.cap { z-index: 6; }
+
+/* Edge on bars joining the rings. */
+.bar {
+  position: absolute;
+  top: 11.25cqw;
+  width: 26.786cqw;
+  height: 4.286cqw;
+  border-radius: var(--r-pill);
+  background: var(--silver-bar);
+  box-shadow: var(--chain-bar);
+  animation: chSlide 7s ease-in-out infinite;
+}
+.b0 {
+  left: 21.429cqw;
+  z-index: 1;
+}
+.b1 {
+  left: 51.786cqw;
+  z-index: 3;
+  animation-delay: -3.5s;
+}
+
+.groove {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 44%;
+  height: 14%;
+  border-radius: var(--r-pill);
+  background: var(--chain-groove);
+  box-shadow: 0 1px 0 var(--chain-groove-hi);
+}
+
+@keyframes chRock {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes chSlide {
+  0%, 100% { transform: translate(-0.5cqw, 0.4cqw) rotate(2deg); }
+  50% { transform: translate(0.5cqw, -0.4cqw) rotate(-2deg); }
+}
+
+@keyframes chFloat {
+  0%, 100% { transform: translateY(0.8cqw); }
+  50% { transform: translateY(-0.8cqw); }
+}
+
+@keyframes chSheen {
+  0%, 100% { background-position: 0% 30%; }
+  50% { background-position: 100% 70%; }
+}
+
+/* The static frame. The global reduced motion rule in base.css only shortens
+   animations, which would leave the last keyframe pose, so the animations are
+   switched off here instead and the static transforms above take over. */
+.still .float,
+.still .ring,
+.still .bar {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float,
+  .ring,
+  .bar {
+    animation: none;
+  }
+}

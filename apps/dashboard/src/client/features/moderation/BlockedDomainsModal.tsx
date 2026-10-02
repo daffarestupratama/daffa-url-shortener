@@ -23,6 +23,8 @@ interface BlockedDomainsModalProps {
   onRemoved: () => void;
   /** Dev preview only: this list instead of a request. */
   forced?: BlockedDomainList;
+  /** Dev preview only: Remove closes the modal, and the Block dialog of the add field only closes. */
+  preview?: boolean;
 }
 
 const domainCount = (n: number) => (n === 1 ? '1 domain' : `${formatNumber(n)} domains`);
@@ -32,7 +34,14 @@ const domainCount = (n: number) => (n === 1 ? '1 domain' : `${formatNumber(n)} d
  * the API, 250 ms after typing stops. Adding a domain opens the same Block
  * dialog a row uses, stacked above, so existing links can be disabled too.
  */
-export function BlockedDomainsModal({ initialQuery = '', onClose, onBlocked, onRemoved, forced }: BlockedDomainsModalProps) {
+export function BlockedDomainsModal({
+  initialQuery = '',
+  onClose,
+  onBlocked,
+  onRemoved,
+  forced,
+  preview = false,
+}: BlockedDomainsModalProps) {
   const { toast } = useApp();
   const [searchText, setSearchText] = useState(initialQuery);
   const [q, setQ] = useState(initialQuery.trim());
@@ -72,11 +81,12 @@ export function BlockedDomainsModal({ initialQuery = '', onClose, onBlocked, onR
   };
 
   const remove = async (host: string) => {
-    if (forced) return;
+    if (forced || preview) return close();
     setRemoving(host);
     try {
       await api.unblockDomain(host);
-      toast(`${host} removed from blocked domains`);
+      // Links the block disabled may have been abusive, so they stay off until enabled one by one.
+      toast(`${host} removed from blocked domains. Links disabled by the block stay disabled`, { duration: 5000 });
       changed.current = true;
       setReloads((n) => n + 1);
       onRemoved();
@@ -105,6 +115,8 @@ export function BlockedDomainsModal({ initialQuery = '', onClose, onBlocked, onR
         </div>
         <p className={styles.desc}>
           Public links to these hostnames and their subdomains are rejected. Private links are not affected.
+          Removing a domain does not enable public links that were disabled when it was blocked. Those links stay
+          disabled and can be enabled one by one on the Public tab.
         </p>
 
         <form onSubmit={add} noValidate>
@@ -199,6 +211,7 @@ export function BlockedDomainsModal({ initialQuery = '', onClose, onBlocked, onR
       {blockHost !== null && (
         <BlockDomainDialog
           host={blockHost}
+          preview={preview}
           onClose={() => setBlockHost(null)}
           onInvalidHost={(message) => {
             setBlockHost(null);

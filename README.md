@@ -19,6 +19,19 @@ One repository holds two Cloudflare Workers that share one D1 database.
 
 The split isolates the public redirect path. A faulty dashboard deploy cannot break published links, and the SPA fallback of the dashboard never intercepts slugs. The root `daffa.me` without a slug redirects to `daffarestupratama.com`. The former dashboard hostname `shorten.daffa.me` is retired without a redirect.
 
+### Client routes
+
+`link.daffa.me` serves one `index.html` for every path outside `/api`. A small boot entry (`main.tsx` with `boot.ts`) holds the global styles and reads the path before any page code loads.
+
+| Path | Result |
+|---|---|
+| `/` | The public page, loaded as its own chunk |
+| `/dashboard` and `/dashboard/links/{id}` | The owner dashboard, loaded as its own chunk, with the detail page lazy on top |
+| `/links/{id}` | The former dashboard address, sent to `/dashboard/links/{id}` with a full page load so Access can sign in first |
+| Any other path | The public page, with the address rewritten to `/` |
+
+The public page never loads dashboard code, and the dashboard never loads public page code beyond the shared primitives in `components/` and `lib/`. `npm run check:bundle` proves both from the module map of the build. The Turnstile script loads only on the public page, and the QR encoder loads only when a QR code is first shown. The public page keeps the static title and meta tags of `index.html`, and the dashboard sets its own title per route.
+
 ### Redirect flow
 
 1. The path is lowercased and stripped of a trailing slash. Any path that fails the slug pattern receives a 404 without a database query.
@@ -33,16 +46,18 @@ A public link never redirects straight away. It serves a notice page with the de
 
 ### Public link creation
 
-`POST /api/public/links` checks each request in a fixed order and stops at the first failure, so cheap refusals never reach Turnstile or the counters:
+`POST /api/public/links` checks each request in a fixed order and stops at the first failure, so cheap refusals never reach Turnstile or the counters.
 
-1. Both secrets configured, otherwise 500. CSRF origin check and an 8 KB body limit.
-2. Body shape: only `url`, `slug`, and `turnstileToken`. A slug must be one the page could draw (six characters from the generator alphabet, not reserved). A missing token is refused here.
-3. URL rules (`checkPublicUrl`): http or https, a dotted hostname, at most 2048 characters, no IP address, no `daffa.me` host, no other URL shortener.
-4. Blocked domains: the host and every parent domain in one indexed lookup.
-5. Turnstile siteverify: success, and the hostname `link.daffa.me`.
-6. Hourly limits and the insert in one transaction: 5 links per visitor and 30 links in total per clock hour. Only successful creations count. A visitor is an HMAC-SHA-256 of `CF-Connecting-IP` keyed with `RATE_LIMIT_SECRET` (IPv6 per /64), so no raw IP is stored.
+1. Both secrets must be configured, otherwise the answer is 500. The CSRF origin check and an 8 KB body limit come next.
+2. The body holds only `url`, `slug`, and `turnstileToken`. A slug must be one the page could draw (six characters from the generator alphabet, not reserved). A missing token is refused here.
+3. The URL passes `checkPublicUrl`, which asks for http or https, a dotted hostname, at most 2048 characters, no IP address, no `daffa.me` host, and no other URL shortener.
+4. The blocked domains list is checked for the host and every parent domain in one indexed lookup.
+5. Turnstile siteverify must report success and the hostname `link.daffa.me`.
+6. The hourly limits and the insert run in one transaction, with 5 links per visitor and 30 links in total per clock hour. Only successful creations count. A visitor is an HMAC-SHA-256 of `CF-Connecting-IP` keyed with `RATE_LIMIT_SECRET` (IPv6 per /64), so no raw IP is stored.
 
 A taken slug is replaced by a new random one, and the answer holds only the slug, the short URL, the stored destination, and the creation time. The work per request stays near 0.1 ms of CPU. D1 and siteverify are I/O waits.
+
+The public page draws the slug in the browser with `randomPublicSlug` and runs `checkPublicUrl` itself before sending, so an invalid destination never spends a Turnstile token. Both sides share one module, so the page shows the same message the server would send, and `npm run smoke` checks that they agree. Every request that reaches the server resets the Turnstile widget afterwards, because a token works only once. A rate limit opens a dialog that counts down to `resetAt` in WIB, and a missing answer or `turnstile_unavailable` shows a retry panel inside the form.
 
 ### Recorded click data
 
@@ -53,11 +68,13 @@ Timestamp, full IP address from `CF-Connecting-IP`, raw User-Agent, bot flag, co
 - The free plan allows 10 ms of CPU per request. The redirect path never parses User-Agents and detects bots with a single regular expression test.
 - User-Agent parsing, charts, and QR generation run in the browser. The API returns grouped raw data.
 - Aggregations run in SQL against two indexes on `clicks`. `npm run explain` confirms that no query scans the full `clicks` table, and that the redirector, the public endpoint, the lists, moderation, and the cron reach every stored table through an index.
-- Visitor pages are single HTML documents with inline CSS, no JavaScript, no web fonts, and a hard limit of 3 KB.
+- Visitor pages are single HTML documents with inline CSS, no JavaScript, no web fonts, and a hard limit of 3 KB. The HTML shell of `link.daffa.me` is held to the same limit.
+- The public page loads the boot entry, the shared primitives, and its own chunk, 88.8 KB of JavaScript and CSS after gzip on 3 Oct 2026, most of it React. `npm run check:bundle` fails above a budget of 98 KB. The chain hero is plain CSS, without an animation library, and shows a static frame under `prefers-reduced-motion`.
+- The links list loads 25 rows at a time. An IntersectionObserver requests the next page before the end of the list scrolls into view, and a Load More button does the same by keyboard. Rows are merged by id, so a row never appears twice.
 
 ### Security
 
-- Cloudflare Access protects `/dashboard` and `/api/admin` on `link.daffa.me`. Login uses Google, and the Access policy allows a single email address. The Google OAuth app stays in Testing mode with the owner account as the only test user. The public page and `/api/public` stay open.
+- Cloudflare Access protects `/dashboard` and `/api/admin` on `link.daffa.me`. Login uses Google, and the Access policy allows a single email address. The Google OAuth app stays in Testing mode with the owner account as the only test user. The public page and `/api/public` stay open. Sign In on the public page is a plain link to `/dashboard`, a full page load, so Access always runs.
 - The Worker verifies the Access JWT from `Cf-Access-Jwt-Assertion` on every `/api/admin` request with `jose` against the team JWKS, checking signature (RS256 only), audience, issuer, and expiry. Missing configuration fails closed with a 500.
 - Every POST, PATCH, and DELETE request, owner or public, requires the origin `https://link.daffa.me` and a JSON content type as CSRF protection.
 - Public creation is protected by Turnstile, hourly limits, and the blocked domains list. Public endpoints never return owner data, tags, other links, or counters.
@@ -97,7 +114,13 @@ The client router and the User-Agent parser are hand written to keep the bundle 
 │       ├── src/worker/      Hono API (routes/ for admin and public), Access auth,
 │       │                    CSRF, Turnstile, rate limit buckets, cursors, cron,
 │       │                    validation, SQL queries
-│       ├── src/client/      React app (components, features, lib, styles)
+│       ├── src/client/      React app
+│       │   ├── main.tsx, boot.ts   boot entry, picks the public page or the dashboard
+│       │   ├── public/      the public page at /
+│       │   ├── features/    the owner dashboard at /dashboard
+│       │   ├── components/  shared primitives (controls, fields, dialogs, tiles, QR)
+│       │   ├── lib/         shared helpers, plus the dashboard API and dev previews
+│       │   └── styles/      tokens, fonts, base styles
 │       ├── public/          _headers, favicons, og.png, robots.txt, sitemap.xml
 │       ├── index.html       meta tags, Open Graph, Turnstile site key
 │       ├── .env.development and .env.production   public Turnstile site keys
@@ -111,6 +134,8 @@ The client router and the User-Agent parser are hand written to keep the bundle 
 ├── migrations/              D1 schema (0001_init.sql, 0002_public_links.sql)
 ├── scripts/                 Node scripts for seeding, audits, smoke tests, icons,
 │                            the Open Graph image, and the local cron trigger
+│                            (a build also writes apps/dashboard/dist/client-chunks.json,
+│                            the module map that npm run check:bundle reads, never deployed)
 ├── design/                  Claude Design handoff bundle, read only reference
 ├── package.json             workspaces and all npm scripts
 ├── tsconfig.json
@@ -135,7 +160,7 @@ Indexes `idx_clicks_link_ts (link_id, ts)` and `idx_clicks_link_bot_ts (link_id,
 - Slug pattern `^[a-z0-9][a-z0-9-]{1,79}$`, which allows 2 to 80 lowercase characters and forbids a leading hyphen. The pattern matches the legacy shortener, so all old slugs remain valid.
 - Reserved slugs are `api admin dashboard shorten www static assets login logout health qr favicon robots`.
 - Generated slugs use 6 characters from `abcdefghijkmnpqrstuvwxyz23456789`, which excludes look alike characters.
-- Destinations are normalized first (`normalizeUrlInput` in `shared/url.ts`): surrounding whitespace is trimmed, and an address without a scheme, such as `example.com/page`, gains `https://`. An explicit `http://` or `https://` is kept as typed, and the normalized value is what gets stored. Any other scheme, such as `javascript:` or `data:`, is rejected.
+- Destinations are normalized first with `normalizeUrlInput` in `shared/url.ts`. Surrounding whitespace is trimmed, and an address without a scheme, such as `example.com/page`, gains `https://`. An explicit `http://` or `https://` is kept as typed, and the normalized value is what gets stored. Any other scheme, such as `javascript:` or `data:`, is rejected. Both forms show the normalized address as `Saved as` under the field whenever it differs from what was typed.
 - Destinations must use http or https and a dotted hostname, so `localhost:3000` stays invalid. `daffa.me` and `www.daffa.me` are rejected to prevent redirect loops. Other `daffa.me` subdomains are allowed for private links.
 - Reactivating an expired link clears the expiry date.
 - QR codes encode `https://daffa.me/{slug}`, not the destination, so printed codes survive destination changes.
@@ -143,9 +168,11 @@ Indexes `idx_clicks_link_ts (link_id, ts)` and `idx_clicks_link_bot_ts (link_id,
 ### Public links
 
 - Slugs are exactly 6 characters from the generator alphabet, drawn by the page. A slug taken in the meantime is replaced by the server.
-- Destinations follow the stricter `checkPublicUrl`: at most 2048 characters after normalization, no IP address, no host under `daffa.me`, no other URL shortener, and no host under a blocked domain. The parsed form is stored, with a lowercase host.
-- The title is the hostname without `www`. Public links have no tags, no description, and no expiry, and are never edited. The owner can only disable, enable, or delete them. A deleted public link frees its slug.
-- Limits: 5 creations per visitor and 30 in total per clock hour, 500 clicks per link and 20.000 clicks in total per UTC day.
+- Destinations follow the stricter `checkPublicUrl`, which allows at most 2048 characters after normalization, no IP address, no host under `daffa.me`, no other URL shortener, and no host under a blocked domain. The parsed form is stored, with a lowercase host.
+- The title is the hostname without `www`. Public links have no tags, no description, and no expiry, and are never edited. The owner can only disable, enable, or delete them. A deleted public link frees its slug, and a disabled one keeps it reserved.
+- The limits are 5 creations per visitor and 30 in total per clock hour, 500 clicks per link and 20.000 clicks in total per UTC day.
+- Blocking a domain never affects private links. It can disable the active public links on the domain at the same moment.
+- Removing a blocked domain never enables the public links that the block disabled, since those may have been abusive. They stay disabled and are enabled one by one from the Public tab, and the Blocked Domains list and its toast both say so.
 
 ## Analytics definitions
 
@@ -154,10 +181,11 @@ Indexes `idx_clicks_link_ts (link_id, ts)` and `idx_clicks_link_bot_ts (link_id,
 - Ranges are 24h (hourly buckets), 7d, 30d, and 90d (daily buckets in WIB), and all (monthly buckets).
 - The chart marks a peak only when at least three buckets hold clicks and the peak reaches three times the median.
 - Numbers use the `1.234` format and dates use the `27 Sep 2026` format.
+- The KPI row of the dashboard has two captioned groups. PRIVATE LINKS holds the active links, human clicks, unique visitors, and the most clicked link, which only private links can provide, since only private visits are logged as `clicks` rows. PUBLIC LINKS holds the public clicks of the day against the shared budget of 20.000, read from the counters.
 
 ## API
 
-Owner API, behind Cloudflare Access and the JWT check:
+The owner API sits behind Cloudflare Access and the JWT check.
 
 ```
 GET    /api/admin/me
@@ -184,7 +212,7 @@ DELETE /api/admin/blocked-domains/{host}
 
 The links list returns 25 rows per page as `{ visibility, links, nextCursor, counts }`. The next page is `?cursor={nextCursor}` with the same filters. Pagination is keyset on (sort key, id), and every page of one listing reads the same moment, so private rows never repeat or go missing. Public click totals are live, so a click sort on the public tab can shift between pages. `counts` holds `{ matching, total }` per tab for the tab labels, and the tag filter narrows private links only.
 
-Public API, without Access:
+The public API works without Access.
 
 ```
 POST   /api/public/links                        { url, slug?, turnstileToken }
@@ -201,12 +229,13 @@ Errors always follow the shape `{ "error": { "code", "message" } }`. A public `i
 | `npm run dev:redirect` and `npm run dev:dashboard` | Runs one Worker only |
 | `npm run migrate:local` | Applies migrations to the local database |
 | `npm run seed:local` | Wipes the local database and loads sample links and clicks |
-| `npm run check` | Typecheck, unit tests, visitor page size, copy audit, and token audit |
+| `npm run seed:many` | Adds about 60 private and 60 public links on top of `seed:local`, so infinite scroll can be checked by eye. Running `npm run seed:local` again removes them |
+| `npm run check` | Typecheck, unit tests, visitor page and HTML shell size, copy audit, and token audit |
 | `npm test` | Unit tests only |
 | `npm run build:dashboard` | Builds the dashboard |
-| `npm run check:bundle` | Checks the dashboard build for dev only code, CDN URLs, headers, favicons, robots and sitemap, Open Graph tags and image, the Turnstile site key, and bundle size |
+| `npm run check:bundle` | Checks the dashboard build for dev only code, CDN URLs, headers, favicons, robots and sitemap, Open Graph tags and image, the Turnstile site key, the route split between the public page and the dashboard, and the size budget of the public page |
 | `npm run explain` | Prints the query plan of every SQL statement and fails on a full scan of `clicks` or on any stored table scan in a case marked as index only |
-| `npm run smoke` | End to end API test against a running `npm run dev` |
+| `npm run smoke` | End to end API test against a running `npm run dev`, including the page by page walk of both dashboard tabs and every client route. Expects the `seed:local` data |
 | `npm run cron:local` | Fires the daily cron once against a running `npm run dev` |
 | `npm run db:counts` | Prints row counts of the local database |
 | `npm run icons` | Regenerates the favicons and the 1200x630 Open Graph image from the design tokens |
@@ -219,16 +248,52 @@ Errors always follow the shape `{ "error": { "code", "message" } }`. A public `i
 1. Install dependencies with `npm install`.
 2. Copy `apps/dashboard/.dev.vars.example` to `apps/dashboard/.dev.vars` and keep `DEV_AUTH_BYPASS=true`. The file is ignored by git. It also holds the Cloudflare Turnstile test secret that always passes and a local `RATE_LIMIT_SECRET`.
 3. Run `npm run migrate:local` and `npm run seed:local`.
-4. Run `npm run dev`, then open `http://localhost:5173` for the dashboard and `http://127.0.0.1:8787/{slug}` for redirects.
+4. Run `npm run dev`, then open `http://localhost:5173` for the public page, `http://localhost:5173/dashboard` for the dashboard, and `http://127.0.0.1:8787/{slug}` for redirects.
 
 Notes for local work
 
 - Both Workers share one local database in `.wrangler-state`. The file name derives from the D1 `database_id`, so a changed id starts an empty local database that needs migrate and seed again.
 - Locally the public page uses the Turnstile test site key from `.env.development`, whose tokens are the dummy token `XXXX.DUMMY.TOKEN.XXXX`. The test secret accepts it, and siteverify then reports the hostname `example.com`, which only the local bypass accepts.
 - The daily cron runs with `npm run cron:local`, or `curl "http://localhost:5173/cdn-cgi/local/scheduled?cron=15+0+*+*+*"`. The purge counts appear in the `npm run dev` output.
-- The seed script deletes all local data first. Seed links keep stable ids (for example `/links/1` is `cv` and `/links/9` has no clicks).
-- In development only, `?state=loading|error|empty|noresults|notfound|flat` and `?overlay=create|edit|qr|delete|toast` force any designed state for visual checks. Both parameters are removed from production builds.
+- The seed script deletes all local data first. Seed links keep stable ids (for example `/dashboard/links/1` is `cv` and `/dashboard/links/9` has no clicks). `npm run seed:many` adds rows on top without changing those ids.
+- In development only, `?state=` and `?overlay=` force any designed state for visual checks, and both combine. Previews never change data. Every dialog, drawer, menu, or form a preview opens or fills only closes on its confirm button, while the same dialog opened by hand stays fully live. Both parameters and every value below are removed from production builds, which `npm run check:bundle` verifies.
 - Local data never touches production.
+
+Preview URLs of the public page
+
+| URL | Shows |
+|---|---|
+| `/?state=filled` and `/?state=submitting` | A filled form, and the busy form |
+| `/?state=success` | The result card with copy and the QR code |
+| `/?state=invalid`, `ip`, `too-long`, `loop`, `shortener` | The field message for each `invalid_url` reason |
+| `/?state=blocked` | The blocked domain message |
+| `/?state=turnstile`, `turnstile-pending`, `turnstile-offline` | The Turnstile slot when the check failed, when no token exists yet, and when the script could not load |
+| `/?state=network` and `/?state=unavailable` | The retry panel |
+| `/?state=static-hero` | The static frame of the chain hero, as `prefers-reduced-motion` shows it |
+| `/?overlay=rate-visitor` and `/?overlay=rate-global` | Both rate limit dialogs, counting down to the next hour |
+| `/?overlay=toast` | A toast that stays |
+
+Preview URLs of the dashboard
+
+| URL | Shows |
+|---|---|
+| `/dashboard?state=loading`, `error`, `empty`, `noresults` | The list states of the active tab, with `&tab=public` for the Public tab |
+| `/dashboard?state=loading-more` | The Load More footer while busy |
+| `/dashboard?state=budget-warn` and `/dashboard?state=budget-full` | The public budget at 75 and 95 percent |
+| `/dashboard?overlay=create`, `create-errors`, `create-ok`, `create-url` | The create form, with field errors, with a free slug, and with the `Saved as` line |
+| `/dashboard?overlay=edit`, `qr`, `delete`, `menu`, `tag`, `sort`, `toast` | Overlays of the first private link and the toolbar |
+| `/dashboard?tab=public&tag=career` | The note that the tag filter applies to private links only |
+| `/dashboard?tab=public&overlay=menu` and `menu-blocked` | The menu of the first public link, also as on a blocked domain |
+| `/dashboard?tab=public&overlay=public-qr`, `public-delete` | The QR code and the delete dialog of the first public link |
+| `/dashboard?tab=public&overlay=block`, `block-none`, `block-covered` | The block dialog, with and without active links, and for a domain already covered |
+| `/dashboard?overlay=blocked`, `blocked-empty`, `blocked-nomatch` | The Blocked Domains list, empty, and with a search that matches nothing |
+| `/dashboard/links/1?state=loading`, `error`, `empty`, `notfound`, `flat` | The states of the analytics page |
+| `/dashboard/links/1?overlay=edit`, `qr`, `delete`, `toast` | Overlays of the analytics page |
+
+Narrow screens
+
+- The status filter wraps below a 324 px viewport, the link tabs below about 392 px with two digit counts (384 px with one digit, 409 px with three), and the time range of the analytics page below 435 px. Wrapped options stretch to fill each row, and on one row nothing changes.
+- The PRIVATE LINKS and PUBLIC LINKS groups of the KPI row share one row from a 1256 px viewport. Below that the public group moves under its own caption.
 
 ## Deployment
 

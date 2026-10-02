@@ -1,7 +1,11 @@
-import { importTs } from './bundle.mjs';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { ROOT, importTs } from './bundle.mjs';
 
 /**
- * The design promises each visitor page stays under 3 KB.
+ * The design promises each visitor page stays under 3 KB. The HTML shell of
+ * link.daffa.me, which the browser fetches before any script of the public
+ * page or the dashboard, is held to the same limit.
  *
  * The 404, 410, and 503 pages are measured against a slug at the 80 character
  * maximum. The two public limit pages are only ever served for public links,
@@ -71,6 +75,22 @@ console.log(
   `  INFO  200 notice, 2048 URL  ${String(worstNotice).padStart(5)} bytes with a 2048 character URL` +
     ` of ampersands and a 63 character host label, not gated`,
 );
+
+// The HTML shell of link.daffa.me, served for / and every /dashboard path
+// before any script runs. Measured from source, without a build: the site key
+// is replaced by one of production length, and the development entry script by
+// the module script and stylesheet tags Vite writes in a build, with hashed
+// names of the same length.
+const shellSource = await readFile(path.join(ROOT, 'apps/dashboard/index.html'), 'utf8');
+const shell = shellSource
+  .replace('%VITE_TURNSTILE_SITE_KEY%', '0x4AAAAAAAAAAAAAAAAAAAAA')
+  .replace(
+    '<script type="module" src="/src/client/main.tsx"></script>',
+    '<script type="module" crossorigin src="/assets/index-XXXXXXXX.js"></script>' +
+      '<link rel="stylesheet" crossorigin href="/assets/index-XXXXXXXX.css">',
+  );
+const shellBytes = bytes(shell);
+report('HTML shell, / and app', shellBytes, shellBytes);
 
 if (failed) {
   console.error('\nAt least one visitor page is over the 3 KB budget.');

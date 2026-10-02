@@ -20,6 +20,11 @@ interface RowMenuProps {
   /** Names the menu for assistive technology, such as "Actions for daffa.me/cv". */
   label: string;
   items: readonly RowMenuItem[];
+  /**
+   * Opened by the dev preview. Until it first closes, choosing an item only
+   * closes the menu, so a preview never changes data. Reopened by hand, the
+   * menu is fully live.
+   */
   defaultOpen?: boolean;
 }
 
@@ -35,6 +40,7 @@ export function RowMenu({ label, items, defaultOpen = false }: RowMenuProps) {
   const [open, setOpen] = useState(defaultOpen);
   const wrap = useRef<HTMLDivElement>(null);
   const openedByUser = useRef(false);
+  const previewing = useRef(defaultOpen);
 
   const trigger = () => wrap.current?.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]') ?? null;
   const menuItems = () => [
@@ -42,11 +48,12 @@ export function RowMenu({ label, items, defaultOpen = false }: RowMenuProps) {
   ];
 
   const close = (focusTrigger: boolean) => {
+    previewing.current = false;
     setOpen(false);
     if (focusTrigger) trigger()?.focus();
   };
 
-  useDismiss(wrap, open, () => setOpen(false));
+  useDismiss(wrap, open, () => close(false));
   useEscapeLayer(open, () => close(true));
 
   useEffect(() => {
@@ -55,7 +62,7 @@ export function RowMenu({ label, items, defaultOpen = false }: RowMenuProps) {
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Tab') {
-      setOpen(false);
+      close(false);
       return;
     }
     const list = menuItems();
@@ -79,7 +86,8 @@ export function RowMenu({ label, items, defaultOpen = false }: RowMenuProps) {
         aria-expanded={open}
         onClick={() => {
           openedByUser.current = true;
-          setOpen((o) => !o);
+          if (open) close(false);
+          else setOpen(true);
         }}
       >
         <KebabIcon />
@@ -101,8 +109,9 @@ export function RowMenu({ label, items, defaultOpen = false }: RowMenuProps) {
                 )}
                 disabled={item.disabled}
                 onClick={() => {
+                  const live = !previewing.current;
                   close(true);
-                  item.onSelect();
+                  if (live) item.onSelect();
                 }}
               >
                 {item.label}

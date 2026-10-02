@@ -12,9 +12,11 @@ interface DeleteDialogProps {
   link: LinkRef;
   onClose: () => void;
   onDeleted: () => void;
+  /** Dev preview only: Delete Permanently closes the dialog without deleting. */
+  preview?: boolean;
 }
 
-export function DeleteDialog({ link, onClose, onDeleted }: DeleteDialogProps) {
+export function DeleteDialog({ link, onClose, onDeleted, preview = false }: DeleteDialogProps) {
   const { refresh, toast } = useApp();
   const [totals, setTotals] = useState<{ human: number; bot: number } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -31,6 +33,7 @@ export function DeleteDialog({ link, onClose, onDeleted }: DeleteDialogProps) {
   }, [link.id]);
 
   const confirm = async () => {
+    if (preview) return onClose();
     setDeleting(true);
     setError(null);
     try {

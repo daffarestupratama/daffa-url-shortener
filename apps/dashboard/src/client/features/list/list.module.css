@@ -45,7 +45,29 @@
   font: 700 22px/1 var(--mono);
 }
 
-/* KPI row: cards directly on the background. */
+/* KPI row: cards directly on the background, in two captioned groups. The
+   private group asks for four 220 px cards and the public group for one, so
+   both share a row from a 1256 px viewport. Below that the public group wraps
+   under its own caption. */
+.kpiGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.kpiPrivate,
+.kpiPublic {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.kpiPrivate { flex: 4 1 940px; }
+.kpiPublic { flex: 1 1 220px; }
+
+/* The public card stretches to the height of the private cards beside it. */
+.kpiPublic > :last-child { flex: 1; }
+
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -333,9 +355,12 @@
   box-shadow: var(--raise-sm);
 }
 
+/* Grows only when the tabs wrap, like the segmented control options. */
 .tab {
   display: inline-flex;
+  flex: 1 1 auto;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   height: 44px;
   padding: 0 18px;

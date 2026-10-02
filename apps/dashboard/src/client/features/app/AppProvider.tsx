@@ -18,6 +18,16 @@ interface FormState {
   seed?: FormSeed;
 }
 
+/** Dialogs a dev preview opens never change data: their confirm button only closes them. */
+export interface OpenOptions {
+  preview?: boolean;
+}
+
+interface DeleteState {
+  link: LinkRef;
+  preview: boolean;
+}
+
 interface AppApi {
   /** Bumped after every change, so pages refetch what they show. */
   version: number;
@@ -26,7 +36,7 @@ interface AppApi {
   openCreate: (seed?: FormSeed) => void;
   openEdit: (link: Link, seed?: FormSeed) => void;
   openQr: (link: LinkRef) => void;
-  openDelete: (link: LinkRef) => void;
+  openDelete: (link: LinkRef, options?: OpenOptions) => void;
   closeForm: () => void;
 }
 
@@ -42,7 +52,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
   const [form, setForm] = useState<FormState | null>(null);
   const [qr, setQr] = useState<LinkRef | null>(null);
-  const [toDelete, setToDelete] = useState<LinkRef | null>(null);
+  const [toDelete, setToDelete] = useState<DeleteState | null>(null);
 
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
 
@@ -56,7 +66,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       openCreate: (seed) => setForm({ mode: 'create', link: null, seed }),
       openEdit: (link, seed) => setForm({ mode: 'edit', link, seed }),
       openQr: (link) => setQr(link),
-      openDelete: (link) => setToDelete(link),
+      openDelete: (link, options) => setToDelete({ link, preview: options?.preview ?? false }),
       closeForm: () => setForm(null),
     }),
     [version, refresh, toast],
@@ -77,7 +87,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {qr && <QrModal link={qr} onClose={() => setQr(null)} />}
       {toDelete && (
         <DeleteDialog
-          link={toDelete}
+          link={toDelete.link}
+          preview={toDelete.preview}
           onClose={() => setToDelete(null)}
           onDeleted={() => {
             setToDelete(null);

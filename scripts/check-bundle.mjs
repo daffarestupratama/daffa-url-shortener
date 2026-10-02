@@ -26,7 +26,8 @@ import { ROOT } from './bundle.mjs';
  *      c. the dashboard never loads a public page module,
  *      d. the QR encoder is only ever loaded lazily,
  *      e. the Turnstile script is referenced by the public page only.
- *  10. Reports the initial load of the public page and of the dashboard.
+ *  10. Reports the initial load of the public page and of the dashboard, and
+ *      fails when the public page passes PUBLIC_GZIP_BUDGET_KB.
  */
 
 const DIST = path.join(ROOT, 'apps/dashboard/dist/client');
@@ -73,7 +74,21 @@ const DEV_ONLY = [
   'blocked-nomatch',
   'budget-warn',
   'budget-full',
+  'rate-visitor',
+  'rate-global',
+  'turnstile-pending',
+  'turnstile-offline',
+  'static-hero',
+  'too-long',
+  'docs google com',
 ];
+
+/**
+ * The public page's initial load, JavaScript and CSS, gzip. Set from the first
+ * full build of the public page (88.8 KB on 3 Oct 2026, about 67 KB of it
+ * React) plus about 10% headroom. Raise it only on purpose.
+ */
+const PUBLIC_GZIP_BUDGET_KB = 98;
 const CDNS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net', 'unpkg.com', 'cdnjs.cloudflare.com'];
 
 const contents = new Map();
@@ -222,8 +237,6 @@ const PUBLIC_ALLOWED = [
   /^node_modules\/(react|react-dom|scheduler|@fontsource\/[^/]+)\//,
 ];
 
-const pending = (message) => checks.push(`  PENDING  ${message}`);
-
 let chunks = [];
 if (!existsSync(CHUNK_MAP)) {
   fail('dist/client-chunks.json is missing. Build with npm run build:dashboard, whose Vite config writes it');
@@ -289,7 +302,7 @@ if (chunks.length && (!entry || !publicChunk || !dashboardChunk)) {
   const publicFiles = new Set(closure(publicChunk.file).map((chunk) => chunk.file));
   const outside = turnstileFiles.filter((file) => !publicFiles.has(file) || file === entry.file);
   if (outside.length) fail(`9e. the Turnstile script is referenced outside the public page: ${outside.join(', ')}`);
-  else if (!turnstileFiles.length) pending('9e. the Turnstile script is not in the build yet, the public page form arrives in F2');
+  else if (!turnstileFiles.length) fail('9e. the Turnstile script is missing from the public page');
   else pass('9e. the Turnstile script is referenced by the public page chunks only');
 }
 
@@ -336,9 +349,10 @@ const routeLoads =
     ? { public: routeLoad(publicChunk), dashboard: routeLoad(dashboardChunk) }
     : null;
 if (routeLoads) {
-  pending(
-    `10. public page initial load is ${kb(routeLoads.public.gzip)} gzip, the budget is set in F2 from the full public page`,
-  );
+  const budget = PUBLIC_GZIP_BUDGET_KB * 1024;
+  const message = `10. public page initial load is ${kb(routeLoads.public.gzip)} gzip, budget ${PUBLIC_GZIP_BUDGET_KB} KB`;
+  if (routeLoads.public.gzip > budget) fail(message);
+  else pass(message);
 }
 
 const fonts = all.filter((f) => f.endsWith('.woff2'));

@@ -29,6 +29,8 @@ export interface FormSeed {
   url?: string;
   slug?: string;
   tried?: boolean;
+  /** Opened by the dev preview: Save only closes the form, and Delete Link opens a preview confirmation. */
+  preview?: boolean;
 }
 
 type Availability =
@@ -131,6 +133,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
   };
 
   const save = async () => {
+    if (seed?.preview) return onClose();
     setTried(true);
     setUrlTouched(true);
     setServerError(null);
@@ -364,7 +367,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
 
       <div className={styles.footer}>
         {editing && (
-          <Button variant="dangerOutline" onClick={() => openDelete({ id: link.id, slug: link.slug, title: link.title })}>
+          <Button variant="dangerOutline" onClick={() => openDelete({ id: link.id, slug: link.slug, title: link.title }, { preview: seed?.preview })}>
             Delete Link
           </Button>
         )}
