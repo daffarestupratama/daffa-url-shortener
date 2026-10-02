@@ -19,7 +19,8 @@ export function at(results: D1Result[], index: number): D1Result {
   return result;
 }
 
-function isSlugConflict(error: unknown): boolean {
+/** True for the unique constraint failure on links.slug, the sign of a taken slug. */
+export function isSlugConflict(error: unknown): boolean {
   return error instanceof Error && /UNIQUE constraint failed: links\.slug/.test(error.message);
 }
 

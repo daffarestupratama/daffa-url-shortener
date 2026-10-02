@@ -2,9 +2,24 @@
 # Local development only. Production values are set as Cloudflare secrets.
 
 # Skips Cloudflare Access verification, but only when the request host is
-# localhost or 127.0.0.1. It has no effect on shorten.daffa.me.
+# localhost or 127.0.0.1. It has no effect on link.daffa.me. It also lets
+# local POST requests pass the CSRF origin check, for the dashboard and the
+# public page alike, and accepts the hostnames of Turnstile test tokens.
 DEV_AUTH_BYPASS=true
 
 # Production Access settings. Not needed while the bypass above is on.
 # ACCESS_TEAM_DOMAIN=your-team.cloudflareaccess.com
 # ACCESS_AUD=your-application-audience-tag
+
+# Turnstile secret for public link creation. This is the Cloudflare test
+# secret that always passes. Send the dummy token XXXX.DUMMY.TOKEN.XXXX with it.
+# The test secret that always fails is 2x0000000000000000000000000000000AA.
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+
+# HMAC key for the per visitor rate limit buckets. Any random text works
+# locally. Production needs its own long random value.
+RATE_LIMIT_SECRET=local-development-rate-limit-secret
+
+# Production secrets are set once from the repository root, never stored here:
+#   npm exec -w @daffa/dashboard -- wrangler secret put TURNSTILE_SECRET
+#   npm exec -w @daffa/dashboard -- wrangler secret put RATE_LIMIT_SECRET

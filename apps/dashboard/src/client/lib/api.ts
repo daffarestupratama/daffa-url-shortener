@@ -6,9 +6,9 @@ import type {
   Link,
   LinkDetail,
   LinkInput,
-  LinkList,
   LinkSort,
   LinkStatusFilter,
+  PrivateLinkList,
   Range,
   SlugAvailability,
   Summary,
@@ -47,7 +47,7 @@ async function request<T>(method: string, path: string, body?: unknown, signal?:
 
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, {
+    response = await fetch(`/api/admin${path}`, {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -96,7 +96,7 @@ export const api = {
   summary: (signal?: AbortSignal) => request<Summary>('GET', '/summary', undefined, signal),
   tags: (signal?: AbortSignal) => request<{ tags: string[] }>('GET', '/tags', undefined, signal),
   links: (q: ListQuery, signal?: AbortSignal) =>
-    request<LinkList>(
+    request<PrivateLinkList>(
       'GET',
       `/links${query({ q: q.q, tag: q.tag, status: q.status === 'all' ? null : q.status, sort: q.sort === 'newest' ? null : q.sort })}`,
       undefined,

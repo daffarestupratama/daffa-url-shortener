@@ -12,6 +12,9 @@ export const PUBLIC_CREATE_PER_IP_HOUR = 5;
 export const PUBLIC_CREATE_GLOBAL_HOUR = 30;
 export const PUBLIC_URL_MAX_LENGTH = 2048;
 
+/** Short links always resolve on the apex, whichever host created them. */
+export const SHORT_LINK_ORIGIN = 'https://daffa.me';
+
 /** Exactly six characters from the generator alphabet, nothing else. */
 export const PUBLIC_SLUG_RE = new RegExp(`^[${SLUG_ALPHABET}]{${GENERATED_SLUG_LENGTH}}$`);
 
@@ -61,4 +64,13 @@ export function isLinkCapReached(
 /** True once all public links together have used the shared daily budget. */
 export function isBudgetReached(clicksUsed: number | null): boolean {
   return (clicksUsed ?? 0) >= PUBLIC_DAILY_CLICK_BUDGET;
+}
+
+/**
+ * The title a public link receives: its hostname without a trailing dot or a
+ * leading www, as the dashboard shows it. Public links are never edited, so the
+ * title stays equal to the host and moderation can match links by it.
+ */
+export function publicTitle(hostname: string): string {
+  return hostname.toLowerCase().replace(/\.$/, '').replace(/^www\./, '');
 }

@@ -18,7 +18,7 @@ export function isLocalHostname(hostname: string): boolean {
 /**
  * True only when both conditions hold: the flag is exactly "true", and the
  * request was addressed to localhost or 127.0.0.1. In production the hostname
- * is always shorten.daffa.me, so a stray flag can never open the dashboard.
+ * is always link.daffa.me, so a stray flag can never open the dashboard.
  */
 export function isDevBypass(env: Pick<Env, 'DEV_AUTH_BYPASS'>, url: URL): boolean {
   return env.DEV_AUTH_BYPASS === 'true' && isLocalHostname(url.hostname);

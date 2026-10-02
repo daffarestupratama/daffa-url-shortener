@@ -6,6 +6,10 @@ export interface Env {
   ACCESS_AUD?: string;
   /** "true" in .dev.vars skips Access, and only ever on localhost. */
   DEV_AUTH_BYPASS?: string;
+  /** Turnstile secret key for public link creation. Set as a secret in production. */
+  TURNSTILE_SECRET?: string;
+  /** HMAC key for the per visitor rate limit buckets, so no raw IP is stored. Set as a secret. */
+  RATE_LIMIT_SECRET?: string;
 }
 
 export interface Variables {

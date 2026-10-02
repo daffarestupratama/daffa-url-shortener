@@ -4,14 +4,15 @@ import type { AppEnv } from './env';
 import { ApiError } from './errors';
 
 /** Hardcoded on purpose. Production never derives the allowed origin from the request. */
-export const PRODUCTION_ORIGIN = 'https://shorten.daffa.me';
+export const PRODUCTION_ORIGIN = 'https://link.daffa.me';
 
 const STATE_CHANGING: readonly string[] = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
 /**
- * In production only the dashboard origin itself. With the development bypass
- * active, the origin the request was sent to, so http://localhost:5173 works
- * while another local app on a different port is still refused.
+ * In production only link.daffa.me itself, which serves the dashboard and the
+ * public page alike. With the development bypass active, the origin the request
+ * was sent to, so http://localhost:5173 works while another local app on a
+ * different port is still refused.
  */
 export function allowedOrigin(url: URL, devBypass: boolean): string {
   return devBypass ? url.origin : PRODUCTION_ORIGIN;
@@ -25,10 +26,11 @@ export function isJsonContentType(value: string | undefined): boolean {
 }
 
 /**
- * Every state changing request must come from the dashboard page and declare a
- * JSON body. A cross site form can do neither: browsers always send Origin on
- * these methods, and a form cannot set Content-Type to application/json. This
- * applies to DELETE and to POST routes without a body as well.
+ * Every state changing request, owner or public, must come from a page on this
+ * origin and declare a JSON body. A cross site form can do neither: browsers
+ * always send Origin on these methods, and a form cannot set Content-Type to
+ * application/json. This applies to DELETE and to POST routes without a body
+ * as well.
  */
 export const csrfMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!STATE_CHANGING.includes(c.req.method)) {

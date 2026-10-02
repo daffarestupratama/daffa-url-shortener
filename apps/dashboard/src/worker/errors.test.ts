@@ -27,6 +27,29 @@ describe('error catalog', () => {
     expect(ERRORS.payload_too_large.status).toBe(413);
     expect(ERRORS.auth_not_configured.status).toBe(500);
     expect(ERRORS.database_unavailable.status).toBe(503);
+    expect(ERRORS.invalid_host.status).toBe(400);
+    expect(ERRORS.blocked_domain.status).toBe(400);
+    expect(ERRORS.turnstile_failed.status).toBe(403);
+    expect(ERRORS.turnstile_unavailable.status).toBe(503);
+    expect(ERRORS.rate_limited_ip.status).toBe(429);
+    expect(ERRORS.rate_limited_global.status).toBe(429);
+    expect(ERRORS.public_not_configured.status).toBe(500);
+  });
+});
+
+describe('ApiError details', () => {
+  it('adds extra fields to the error object and headers to the response', async () => {
+    const app = new Hono();
+    app.onError(handleError);
+    app.get('/limited', () => {
+      throw new ApiError('rate_limited_ip', undefined, { resetAt: 1_790_000_000_000 }, { 'Retry-After': '120' });
+    });
+    const response = await app.request('/limited');
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('120');
+    expect(await response.json()).toEqual({
+      error: { code: 'rate_limited_ip', message: ERRORS.rate_limited_ip.message, resetAt: 1_790_000_000_000 },
+    });
   });
 });
 

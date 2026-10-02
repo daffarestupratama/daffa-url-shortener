@@ -1,4 +1,13 @@
-import { deriveStatus, type ClickRow, type Link, type LinkListItem, type LinkRow } from '@daffa/shared';
+import {
+  clicksToday,
+  deriveStatus,
+  isLinkCapReached,
+  type ClickRow,
+  type Link,
+  type LinkListItem,
+  type LinkRow,
+  type PublicLinkItem,
+} from '@daffa/shared';
 
 /** A links row joined with its tags as a JSON array string. */
 export interface LinkDbRow extends LinkRow {
@@ -7,6 +16,20 @@ export interface LinkDbRow extends LinkRow {
 
 export interface LinkListDbRow extends LinkDbRow {
   clicks7d: number;
+}
+
+/** A public link row as LIST_SQL.public and PUBLIC_LINK_BY_ID return it. */
+export interface PublicLinkDbRow {
+  id: number;
+  slug: string;
+  url: string;
+  title: string;
+  is_active: number;
+  created_at: number;
+  updated_at: number;
+  click_total: number;
+  click_day: number;
+  click_today: number;
 }
 
 export interface ClickDbRow {
@@ -50,6 +73,29 @@ export function toLink(row: LinkDbRow, now: number = Date.now()): Link {
 
 export function toListItem(row: LinkListDbRow, now: number = Date.now()): LinkListItem {
   return { ...toLink(row, now), clicks7d: row.clicks7d };
+}
+
+/**
+ * Public links never expire, so the status is active or inactive. Today's
+ * count comes from the counters the redirector keeps, read with the same
+ * helpers the redirector uses to enforce the daily limit.
+ */
+export function toPublicItem(row: PublicLinkDbRow, domainBlocked: boolean, now: number = Date.now()): PublicLinkItem {
+  const isActive = row.is_active === 1;
+  return {
+    id: row.id,
+    slug: row.slug,
+    url: row.url,
+    host: row.title,
+    isActive,
+    status: deriveStatus(isActive, null, now),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    clickTotal: row.click_total,
+    clicksToday: clicksToday(row.click_day, row.click_today, now),
+    limitReached: isLinkCapReached(row.click_day, row.click_today, now),
+    domainBlocked,
+  };
 }
 
 export function toClickRow(row: ClickDbRow): ClickRow {

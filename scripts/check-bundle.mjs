@@ -14,6 +14,11 @@ import { ROOT } from './bundle.mjs';
  *   4. Flags are separate files, not inlined into JavaScript.
  *   5. Reports raw and gzip sizes, split into the initial load and lazy chunks.
  *   6. The favicons are present: favicon.svg, favicon.ico, apple-touch-icon.png.
+ *   7. Search engines: robots.txt and sitemap.xml are present, the public page
+ *      carries no noindex but a canonical link and Open Graph tags, og.png is a
+ *      1200x630 PNG, and _headers marks /dashboard as noindex.
+ *   8. Turnstile: no test site key is in the build, and index.html carries a
+ *      real production site key, not the placeholder from .env.production.
  */
 
 const DIST = path.join(ROOT, 'apps/dashboard/dist/client');
@@ -99,8 +104,75 @@ if (missingIcons.length) {
   else pass('favicon.svg, favicon.ico and a 180x180 apple-touch-icon.png are present');
 }
 
-// 5: sizes.
+// 7: search engines and link previews.
 const html = contents.get(path.join(DIST, 'index.html')) ?? '';
+
+async function readText(name) {
+  const file = path.join(DIST, name);
+  return existsSync(file) ? readFile(file, 'utf8') : null;
+}
+
+const robots = await readText('robots.txt');
+const robotsRules = ['User-agent: *', 'Allow: /', 'Disallow: /dashboard', 'Disallow: /api', 'Sitemap: https://link.daffa.me/sitemap.xml'];
+const robotsLines = robots === null ? [] : robots.split(/\r?\n/);
+const missingRules = robotsRules.filter((rule) => !robotsLines.includes(rule));
+if (missingRules.length) fail(`robots.txt is missing ${missingRules.join(', ')}`);
+else pass('robots.txt allows / and disallows /dashboard and /api');
+
+const sitemap = await readText('sitemap.xml');
+if (!sitemap?.includes('<loc>https://link.daffa.me/</loc>')) fail('sitemap.xml does not list https://link.daffa.me/');
+else pass('sitemap.xml lists https://link.daffa.me/');
+
+// A rule block starts with an unindented path, its headers follow indented.
+const headerBlocks = ((await readText('_headers')) ?? '').split(/\r?\n(?=\S)/);
+const dashboardNoindex = ['/dashboard', '/dashboard/*'].every((rule) =>
+  headerBlocks.some((block) => block.split(/\r?\n/)[0]?.trim() === rule && block.includes('X-Robots-Tag: noindex')),
+);
+if (!dashboardNoindex) fail('_headers does not send X-Robots-Tag: noindex on /dashboard and /dashboard/*');
+else pass('_headers sends X-Robots-Tag: noindex on /dashboard');
+
+const metaProblems = [];
+if (/<meta[^>]+name="robots"[^>]+noindex/i.test(html)) metaProblems.push('a noindex meta tag');
+if (!html.includes('<link rel="canonical" href="https://link.daffa.me/"')) metaProblems.push('no canonical link');
+for (const tag of ['og:title', 'og:description', 'og:url', 'og:image', 'twitter:card']) {
+  if (!html.includes(`"${tag}"`)) metaProblems.push(`no ${tag}`);
+}
+if (metaProblems.length) fail(`index.html has ${metaProblems.join(', ')}`);
+else pass('index.html is indexable, with a canonical link and Open Graph tags');
+
+const ogFile = path.join(DIST, 'og.png');
+if (!existsSync(ogFile)) {
+  fail('og.png is missing from dist/client');
+} else {
+  const og = await readFile(ogFile);
+  const isPng = og.readUInt32BE(0) === 0x89504e47;
+  const ogSize = `${og.readUInt32BE(16)}x${og.readUInt32BE(20)}`;
+  if (!isPng || ogSize !== '1200x630') fail(`og.png must be a 1200x630 PNG, found ${isPng ? ogSize : 'another format'}`);
+  else pass(`og.png is a 1200x630 PNG, ${(og.length / 1024).toFixed(1)} KB`);
+}
+
+// 8: Turnstile site keys. The test keys are documented by Cloudflare and
+// always pass or always fail, so one in production would disable the check.
+const TEST_SITE_KEY = /\b[123]x0{20}[A-F]{2}\b/;
+const testKeyHits = [...contents].filter(([, text]) => TEST_SITE_KEY.test(text)).map(([file]) => path.relative(DIST, file));
+if (testKeyHits.length) fail(`a Turnstile test site key is in the build: ${testKeyHits.join(', ')}`);
+else pass('no Turnstile test site key in the build');
+
+const siteKey = /<meta name="turnstile-site-key" content="([^"]*)"/.exec(html)?.[1];
+const ENV_FILE = 'apps/dashboard/.env.production';
+if (siteKey === undefined) {
+  fail('index.html has no turnstile-site-key meta tag');
+} else if (siteKey === '' || siteKey.includes('%VITE_')) {
+  fail(`the Turnstile site key is empty. Set VITE_TURNSTILE_SITE_KEY in ${ENV_FILE}`);
+} else if (siteKey.includes('REPLACE_WITH')) {
+  fail(`the Turnstile site key is still the placeholder. Put the real key in ${ENV_FILE}`);
+} else if (!/^0x[A-Za-z0-9_-]{18,}$/.test(siteKey)) {
+  fail(`the Turnstile site key "${siteKey}" does not look like a real key. Check ${ENV_FILE}`);
+} else {
+  pass('a real Turnstile site key is set');
+}
+
+// 5: sizes.
 const initialNames = new Set([...html.matchAll(/(?:src|href)="\/?(assets\/[^"]+\.(?:js|css))"/g)].map((m) => m[1]));
 
 const kb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;

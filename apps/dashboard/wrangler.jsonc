@@ -5,10 +5,14 @@
   "compatibility_date": "2026-09-01",
 
   // Custom domain, not a route pattern. Cloudflare manages the DNS record.
-  "routes": [{ "pattern": "shorten.daffa.me", "custom_domain": true }],
+  // link.daffa.me serves the public page at / and the dashboard at
+  // /dashboard. shorten.daffa.me is retired without a redirect.
+  "routes": [{ "pattern": "link.daffa.me", "custom_domain": true }],
 
-  // Only shorten.daffa.me reaches this Worker. No workers.dev subdomain and no
+  // Only link.daffa.me reaches this Worker. No workers.dev subdomain and no
   // preview URLs, so Cloudflare Access cannot be bypassed through another host.
+  // Access protects /dashboard and /api/admin only, and the Worker verifies
+  // the Access JWT on every /api/admin request itself.
   "workers_dev": false,
   "preview_urls": false,
 
@@ -22,8 +26,14 @@
 
   "observability": { "enabled": true },
 
-  // ACCESS_TEAM_DOMAIN and ACCESS_AUD are set as secrets in production, never
-  // here. Locally, .dev.vars enables the development bypass instead.
+  // Daily purge of old rate limit windows and daily budget rows, at 00:15 UTC
+  // (07:15 WIB), just after the public limits reset. Run it locally with
+  // npm run cron:local while npm run dev is running.
+  "triggers": { "crons": ["15 0 * * *"] },
+
+  // ACCESS_TEAM_DOMAIN, ACCESS_AUD, TURNSTILE_SECRET and RATE_LIMIT_SECRET are
+  // set as secrets in production, never here. Locally, .dev.vars holds the
+  // development bypass and the Turnstile test secret instead.
 
   "d1_databases": [
     {

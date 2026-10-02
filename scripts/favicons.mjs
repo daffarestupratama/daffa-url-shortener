@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { deflateSync } from 'node:zlib';
 import { ROOT, importTs } from './bundle.mjs';
+import { encodePng } from './png.mjs';
 
 /**
  * Writes the dashboard favicons to apps/dashboard/public: favicon.svg,
@@ -9,8 +9,8 @@ import { ROOT, importTs } from './bundle.mjs';
  *
  * The motif is a small gate tile: the tile gradient with a yellow slash, in
  * colors read from shared/tokens.ts so they cannot drift from the design.
- * Rasterizing and PNG encoding are done here with node:zlib, so no image
- * library is needed. Rerun with `npm run icons` after a token change.
+ * Rasterizing is done here and PNG encoding in png.mjs with node:zlib, so no
+ * image library is needed. Rerun with `npm run icons` after a token change.
  */
 
 const { COLORS } = await importTs('shared/tokens.ts');
@@ -108,43 +108,8 @@ function rasterize(size, radius) {
 
 // PNG and ICO encoding ---------------------------------------------------
 
-const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
-
-function crc32(buffer) {
-  let c = 0xffffffff;
-  for (const byte of buffer) c = CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-}
-
-function chunk(type, data) {
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(data.length);
-  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-  const crc = Buffer.alloc(4);
-  crc.writeUInt32BE(crc32(body));
-  return Buffer.concat([length, body, crc]);
-}
-
 function png(size, radius) {
-  const pixels = rasterize(size, radius);
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(size, 0);
-  header.writeUInt32BE(size, 4);
-  header[8] = 8; // bit depth
-  header[9] = 6; // RGBA
-  // Each scanline starts with filter type 0.
-  const raw = Buffer.alloc(size * (size * 4 + 1));
-  for (let y = 0; y < size; y += 1) pixels.copy(raw, y * (size * 4 + 1) + 1, y * size * 4, (y + 1) * size * 4);
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', header),
-    chunk('IDAT', deflateSync(raw, { level: 9 })),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
+  return encodePng(size, size, rasterize(size, radius));
 }
 
 /** An ICO file with PNG images inside, supported by every current browser. */

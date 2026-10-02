@@ -127,7 +127,7 @@ describe('normalizeTeamDomain', () => {
 });
 
 describe('isDevBypass', () => {
-  const at = (host: string) => new URL(`http://${host}/api/me`);
+  const at = (host: string) => new URL(`http://${host}/api/admin/me`);
 
   it('is on for localhost and 127.0.0.1 when the flag is exactly "true"', () => {
     expect(isDevBypass({ DEV_AUTH_BYPASS: 'true' }, at('localhost:5173'))).toBe(true);
@@ -135,7 +135,7 @@ describe('isDevBypass', () => {
   });
 
   it('is off on the production host even with the flag set', () => {
-    expect(isDevBypass({ DEV_AUTH_BYPASS: 'true' }, new URL('https://shorten.daffa.me/api/me'))).toBe(
+    expect(isDevBypass({ DEV_AUTH_BYPASS: 'true' }, new URL('https://link.daffa.me/api/admin/me'))).toBe(
       false,
     );
   });
@@ -153,8 +153,8 @@ describe('isDevBypass', () => {
 });
 
 describe('authMiddleware, one case per step of the check order', () => {
-  const DEV_URL = 'http://localhost:5173/api/me';
-  const PROD_URL = 'https://shorten.daffa.me/api/me';
+  const DEV_URL = 'http://localhost:5173/api/admin/me';
+  const PROD_URL = 'https://link.daffa.me/api/admin/me';
   const configured: Partial<Env> = { ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: AUDIENCE };
 
   function build() {
@@ -162,7 +162,7 @@ describe('authMiddleware, one case per step of the check order', () => {
     const app = new Hono<AppEnv>();
     app.onError(handleError);
     app.use('*', createAuthMiddleware({ getKeySet }));
-    app.get('/api/me', (c) => c.json({ email: c.get('email') }));
+    app.get('/api/admin/me', (c) => c.json({ email: c.get('email') }));
     return { app, getKeySet };
   }
 

@@ -72,6 +72,10 @@ export type Bucket = 'hour' | 'day' | 'month';
 // converts to WIB for display.
 
 export type LinkStatusFilter = 'all' | LinkStatus;
+export type Visibility = 'private' | 'public';
+
+/** Rows per page of the links list, on both tabs. */
+export const LINK_LIST_PAGE_SIZE = 25;
 export type LinkSort = 'newest' | 'oldest' | 'clicks' | 'least';
 
 export type ErrorCode =
@@ -88,10 +92,24 @@ export type ErrorCode =
   | 'payload_too_large'
   | 'internal'
   | 'auth_not_configured'
-  | 'database_unavailable';
+  | 'database_unavailable'
+  | 'invalid_host'
+  | 'blocked_domain'
+  | 'turnstile_failed'
+  | 'turnstile_unavailable'
+  | 'rate_limited_ip'
+  | 'rate_limited_global'
+  | 'public_not_configured';
 
 export interface ApiErrorBody {
-  error: { code: ErrorCode; message: string };
+  error: {
+    code: ErrorCode;
+    message: string;
+    /** On rate_limited_ip and rate_limited_global: when creation opens again, the next clock hour. */
+    resetAt?: number;
+    /** On invalid_url from the public endpoint: which rule of checkPublicUrl failed. */
+    reason?: string;
+  };
 }
 
 /** Body of POST /api/links and PATCH /api/links/:id. */
@@ -110,11 +128,51 @@ export interface LinkListItem extends Link {
   clicks7d: number;
 }
 
-export interface LinkList {
-  links: LinkListItem[];
-  /** Every saved link, ignoring filters. Zero means the empty state. */
+/** A public link as the owner sees it on the Public tab. Counters only, no analytics. */
+export interface PublicLinkItem {
+  id: number;
+  slug: string;
+  url: string;
+  /** Hostname without www, which is also the stored title. */
+  host: string;
+  isActive: boolean;
+  /** Public links never expire, so only active or inactive. */
+  status: LinkStatus;
+  createdAt: number;
+  updatedAt: number;
+  clickTotal: number;
+  /** Clicks in the current UTC day, against PUBLIC_DAILY_CLICK_LIMIT. */
+  clicksToday: number;
+  limitReached: boolean;
+  /** The host falls under an entry of the blocked domains list. */
+  domainBlocked: boolean;
+}
+
+export interface VisibilityCount {
+  /** Links of this visibility that match the current filters. */
+  matching: number;
+  /** Every link of this visibility. Zero means the empty state. */
   total: number;
 }
+
+export interface LinkListBase {
+  /** Pass back as ?cursor= for the next page. Null on the last page. */
+  nextCursor: string | null;
+  /** For the tab labels. The tag filter only narrows private links. */
+  counts: Record<Visibility, VisibilityCount>;
+}
+
+export interface PrivateLinkList extends LinkListBase {
+  visibility: 'private';
+  links: LinkListItem[];
+}
+
+export interface PublicLinkList extends LinkListBase {
+  visibility: 'public';
+  links: PublicLinkItem[];
+}
+
+export type LinkList = PrivateLinkList | PublicLinkList;
 
 export interface LinkDetail {
   link: Link;
@@ -130,6 +188,57 @@ export interface Summary {
   top: { id: number; slug: string; title: string; clicks: number } | null;
   windowStart: number;
   windowEnd: number;
+  /** Every public link, any status. total and active above count private links only. */
+  publicTotal: number;
+  /** Clicks of all public links in the current UTC day. */
+  publicClicksToday: number;
+  /** PUBLIC_DAILY_CLICK_BUDGET, for the progress bar. */
+  publicDailyBudget: number;
+}
+
+/** Body of POST /api/public/links. */
+export interface PublicCreateInput {
+  url: string;
+  /** A slug from randomPublicSlug. Left out, the server picks one. */
+  slug?: string;
+  turnstileToken: string;
+}
+
+/** Everything the public result card needs, and nothing else. */
+export interface PublicCreateResult {
+  /** May differ from the requested slug when that one was taken meanwhile. */
+  slug: string;
+  shortUrl: string;
+  /** The destination as stored, after normalization. */
+  url: string;
+  createdAt: number;
+}
+
+export interface BlockedDomain {
+  host: string;
+  createdAt: number;
+}
+
+export interface BlockedDomainList {
+  domains: BlockedDomain[];
+  /** Every blocked domain, ignoring the search. */
+  total: number;
+}
+
+/** For the block dialog: whether a host is covered already, and how many links it would disable. */
+export interface BlockedDomainCheck {
+  host: string;
+  /** The entry that already covers the host, itself or a parent domain. */
+  blockedBy: string | null;
+  activePublicLinks: number;
+}
+
+export interface BlockDomainResult {
+  domain: BlockedDomain;
+  /** False when the host was on the list already. */
+  created: boolean;
+  /** Active public links disabled by this request. */
+  disabled: number;
 }
 
 export interface SlugAvailability {

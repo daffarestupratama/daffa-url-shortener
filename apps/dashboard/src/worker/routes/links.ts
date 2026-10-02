@@ -1,21 +1,39 @@
-import { hostOf, rangeWindow, slugTakenMessage, type LinkDetail, type LinkList } from '@daffa/shared';
+import {
+  LINK_LIST_PAGE_SIZE,
+  hostOf,
+  rangeWindow,
+  slugTakenMessage,
+  type LinkDetail,
+  type LinkList,
+  type VisibilityCount,
+} from '@daffa/shared';
 import { Hono } from 'hono';
+import { encodeCursor } from '../cursor';
 import { at, first, rethrowSlugConflict, rows } from '../db';
 import type { AppEnv } from '../env';
 import { ApiError } from '../errors';
-import { toLink, toListItem, type LinkDbRow, type LinkListDbRow } from '../mappers';
+import { blockedEntries, coveringEntry, urlHostname } from '../hosts';
+import {
+  toLink,
+  toListItem,
+  toPublicItem,
+  type LinkDbRow,
+  type LinkListDbRow,
+  type PublicLinkDbRow,
+} from '../mappers';
 import {
   ATTACH_TAGS_BY_ID,
   ATTACH_TAGS_BY_SLUG,
   CLEAR_LINK_TAGS,
-  COUNT_LINKS,
+  COUNT_PRIVATE,
+  COUNT_PUBLIC,
   DELETE_LINK,
   INSERT_LINK,
   INSERT_TAGS,
   LINK_BY_ID,
   LINK_BY_SLUG,
   LINK_TOTALS,
-  LIST_LINKS,
+  LIST_SQL,
   SLUG_OWNER,
   TOGGLE_LINK,
   UPDATE_LINK,
@@ -24,24 +42,77 @@ import { likePattern, parseId, parseLinkInput, parseListQuery, readJson } from '
 
 const LINK_NOT_FOUND = 'The link was not found.';
 
+/**
+ * The owner's links. Routes on a single link only ever see private links, so
+ * a public id answers 404 here and public links are moderated through
+ * routes/publicLinks.ts instead.
+ */
 export const linkRoutes = new Hono<AppEnv>()
-  /** One batch: the filtered list, then the unfiltered count. */
+  /**
+   * One page of one tab, plus the counts of both tabs, in one batch. A public
+   * page needs one more indexed query to mark rows whose domain is blocked.
+   * See the list notes in queries.ts for the cursor and the asOf snapshot.
+   */
   .get('/links', async (c) => {
     const db = c.env.DB;
     const query = parseListQuery(c.req.query());
-    const now = Date.now();
-    const window = rangeWindow('7d', now, now);
+    const asOf = query.cursor?.asOf ?? Date.now();
+    const like = query.q ? likePattern(query.q) : null;
+    const key = query.cursor?.key ?? null;
+    const afterId = query.cursor?.id ?? null;
+    const limit = LINK_LIST_PAGE_SIZE + 1;
+
+    const page =
+      query.visibility === 'private'
+        ? db
+            .prepare(LIST_SQL.private[query.sort])
+            .bind(asOf, rangeWindow('7d', asOf, asOf).start, like, query.tag, query.status, key, afterId, limit)
+        : db.prepare(LIST_SQL.public[query.sort]).bind(asOf, like, query.status, key, afterId, limit);
 
     const results = await db.batch([
-      db
-        .prepare(LIST_LINKS)
-        .bind(now, window.start, query.q ? likePattern(query.q) : null, query.tag, query.status, query.sort),
-      db.prepare(COUNT_LINKS),
+      page,
+      db.prepare(COUNT_PRIVATE).bind(asOf, like, query.tag, query.status),
+      db.prepare(COUNT_PUBLIC).bind(asOf, like, query.status),
     ]);
 
+    const count = (index: number): VisibilityCount => {
+      const row = first<VisibilityCount>(at(results, index));
+      return { matching: row?.matching ?? 0, total: row?.total ?? 0 };
+    };
+    const counts = { private: count(1), public: count(2) };
+    const byClicks = query.sort === 'clicks' || query.sort === 'least';
+
+    // One extra row was read only to learn whether another page follows.
+    const nextCursor = (last: { id: number } | undefined, sortKey: number, more: boolean) =>
+      more && last
+        ? encodeCursor({ visibility: query.visibility, sort: query.sort, key: sortKey, id: last.id, asOf })
+        : null;
+
+    if (query.visibility === 'private') {
+      const all = rows<LinkListDbRow>(at(results, 0));
+      const shown = all.slice(0, LINK_LIST_PAGE_SIZE);
+      const last = shown[shown.length - 1];
+      const body: LinkList = {
+        visibility: 'private',
+        links: shown.map((row) => toListItem(row, asOf)),
+        nextCursor: nextCursor(last, last ? (byClicks ? last.clicks7d : last.created_at) : 0, all.length > shown.length),
+        counts,
+      };
+      return c.json(body);
+    }
+
+    const all = rows<PublicLinkDbRow>(at(results, 0));
+    const shown = all.slice(0, LINK_LIST_PAGE_SIZE);
+    const last = shown[shown.length - 1];
+    const hosts = shown.map((row) => urlHostname(row.url) ?? row.title);
+    const blocked = await blockedEntries(db, hosts);
+    // Today's counts are live, so they are read against the current time, not asOf.
+    const now = Date.now();
     const body: LinkList = {
-      links: rows<LinkListDbRow>(at(results, 0)).map((row) => toListItem(row, now)),
-      total: first<{ total: number }>(at(results, 1))?.total ?? 0,
+      visibility: 'public',
+      links: shown.map((row, index) => toPublicItem(row, coveringEntry(hosts[index] ?? '', blocked) !== null, now)),
+      nextCursor: nextCursor(last, last ? (byClicks ? last.click_total : last.created_at) : 0, all.length > shown.length),
+      counts,
     };
     return c.json(body);
   })
@@ -85,7 +156,7 @@ export const linkRoutes = new Hono<AppEnv>()
 
     const row = first<LinkDbRow>(at(results, 3));
     if (!row) throw new Error('The created link could not be read back.');
-    c.header('Location', `/api/links/${row.id}`);
+    c.header('Location', `/api/admin/links/${row.id}`);
     return c.json({ link: toLink(row, now) }, 201);
   })
 

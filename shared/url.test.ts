@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { blockedDomainMessage, checkPublicUrl, hostOf, hostPath, validateUrl } from './url';
+import {
+  INVALID_URL_FORMAT,
+  blockedDomainMessage,
+  checkPublicUrl,
+  hostOf,
+  hostPath,
+  normalizeUrlInput,
+  validateUrl,
+} from './url';
 
-const INVALID_FORMAT = 'Invalid URL format. Use a full address starting with https://';
+const INVALID_FORMAT =
+  'Invalid URL format. Enter a web address such as example.com or https://example.com/page.';
 const REDIRECT_LOOP =
   'Destination URL cannot point to daffa.me because it would create a redirect loop.';
 
@@ -18,9 +27,15 @@ describe('validateUrl', () => {
     expect(validateUrl('', { required: true })).toBe('Destination URL is required.');
   });
 
-  it('rejects anything that is not a full http address', () => {
-    expect(validateUrl('example.com')).toBe(INVALID_FORMAT);
+  it('accepts a bare domain, which gains https://', () => {
+    expect(validateUrl('example.com')).toBeNull();
+    expect(validateUrl('www.example.com/a?b=c')).toBeNull();
+  });
+
+  it('rejects anything that is not a web address', () => {
     expect(validateUrl('not a url')).toBe(INVALID_FORMAT);
+    expect(validateUrl('localhost:3000')).toBe(INVALID_FORMAT);
+    expect(validateUrl('data:text/html,x')).toBe(INVALID_FORMAT);
     expect(validateUrl('ftp://example.com')).toBe(INVALID_FORMAT);
     expect(validateUrl('javascript:alert(1)')).toBe(INVALID_FORMAT);
     expect(validateUrl('https://localhost')).toBe(INVALID_FORMAT);
@@ -88,12 +103,10 @@ describe('checkPublicUrl', () => {
   });
 
   it('applies the owner format rules with the public copy', () => {
-    for (const value of ['example.com', 'not a url', 'ftp://example.com', 'javascript:alert(1)', 'https://localhost']) {
+    for (const value of ['not a url', 'ftp://example.com', 'javascript:alert(1)', 'data:text/html,x', 'https://localhost', 'localhost:3000']) {
       expect(code(value), value).toBe('invalid');
     }
-    expect(checkPublicUrl('docs google com/forms/rsvp')?.message).toBe(
-      'Invalid URL format. Use a full address that starts with https://',
-    );
+    expect(checkPublicUrl('docs google com/forms/rsvp')?.message).toBe(INVALID_FORMAT);
   });
 
   it('refuses daffa.me and every subdomain of it', () => {
@@ -121,6 +134,67 @@ describe('checkPublicUrl', () => {
     expect(validateUrl('https://shorten.daffa.me')).toBeNull();
     expect(validateUrl('https://bit.ly/3xYz9Qa')).toBeNull();
     expect(validateUrl('http://127.0.0.1/')).toBeNull();
+  });
+});
+
+describe('normalizeUrlInput', () => {
+  it('adds https:// to an address typed without a scheme', () => {
+    expect(normalizeUrlInput('example.com/path')).toBe('https://example.com/path');
+    expect(normalizeUrlInput('www.example.com')).toBe('https://www.example.com');
+    expect(normalizeUrlInput('example.com:8080/x')).toBe('https://example.com:8080/x');
+    expect(normalizeUrlInput('//example.com/a')).toBe('https://example.com/a');
+  });
+
+  it('keeps an explicit http:// or https:// as typed', () => {
+    expect(normalizeUrlInput('http://example.com/A?b=C')).toBe('http://example.com/A?b=C');
+    expect(normalizeUrlInput('https://Example.com/Path')).toBe('https://Example.com/Path');
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(normalizeUrlInput('  \n example.com/x \t ')).toBe('https://example.com/x');
+    expect(normalizeUrlInput('   ')).toBe('');
+  });
+
+  it('recognizes an uppercase scheme and lowercases only the scheme', () => {
+    expect(normalizeUrlInput('HTTPS://Example.com/A')).toBe('https://Example.com/A');
+    expect(normalizeUrlInput('Http://example.com')).toBe('http://example.com');
+    expect(validateUrl('HTTPS://EXAMPLE.COM/A')).toBeNull();
+  });
+
+  it('leaves other schemes alone so the validators reject them', () => {
+    for (const value of ['javascript:alert(1)', 'data:text/html,x', 'mailto:a@example.com', 'ftp://example.com']) {
+      expect(normalizeUrlInput(value), value).toBe(value);
+      expect(validateUrl(value), value).toBe(INVALID_URL_FORMAT);
+      expect(checkPublicUrl(value)?.code, value).toBe('invalid');
+    }
+  });
+
+  it('treats host:port as an address, so the dotted host rule still decides', () => {
+    expect(normalizeUrlInput('localhost:3000')).toBe('https://localhost:3000');
+    expect(validateUrl('localhost:3000')).toBe(INVALID_URL_FORMAT);
+    expect(checkPublicUrl('localhost:3000')?.code).toBe('invalid');
+    expect(validateUrl('javascript:0')).toBe(INVALID_URL_FORMAT);
+  });
+
+  it('changes nothing when applied twice', () => {
+    for (const value of ['example.com/x', 'HTTP://a.com', '//a.com', 'javascript:alert(1)', 'localhost:3000', '  b.com  ']) {
+      const once = normalizeUrlInput(value);
+      expect(normalizeUrlInput(once), value).toBe(once);
+    }
+  });
+
+  it('measures the length after the prefix is added', () => {
+    const bare = `example.com/${'a'.repeat(2040 - 'example.com/'.length)}`;
+    expect(bare.length).toBe(2040);
+    expect(normalizeUrlInput(bare).length).toBe(2048);
+    expect(checkPublicUrl(bare)).toBeNull();
+    const over = `${bare}xyz`;
+    expect(over.length).toBeLessThanOrEqual(2048);
+    expect(checkPublicUrl(over)?.code).toBe('too_long');
+  });
+
+  it('reports a bare IP address as an IP, not as a format error', () => {
+    expect(checkPublicUrl('192.168.1.1')?.code).toBe('ip');
   });
 });
 

@@ -5,8 +5,13 @@ import { d1Local } from './d1.mjs';
  * Runs EXPLAIN QUERY PLAN on every query the dashboard API and the redirector
  * ship, against the local database. Fails if any of them scans the clicks
  * table instead of using idx_clicks_link_ts or idx_clicks_link_bot_ts, and
- * fails if a case marked `noScan` scans any table at all. The redirector
- * cases are marked, since they run on every click.
+ * fails if a case marked `noScan` scans any stored table at all. The
+ * redirector cases are marked, since they run on every click, and so is
+ * everything the public create endpoint and the daily cron run.
+ *
+ * Two kinds of SCAN line never read stored rows and are allowed under noScan:
+ * json_each over a bound parameter (VIRTUAL TABLE) and a derived table or
+ * subquery result.
  *
  * The SQL comes straight from apps/dashboard/src/worker/queries.ts and
  * apps/redirector/src/sql.ts, so this checks what actually runs. Parameters
@@ -14,6 +19,14 @@ import { d1Local } from './d1.mjs';
  */
 
 const CLICK_INDEXES = ['idx_clicks_link_ts', 'idx_clicks_link_bot_ts'];
+
+/** A SCAN of a stored table, as opposed to json_each or a derived table. */
+function scansStoredTable(detail) {
+  if (!/^SCAN /.test(detail)) return false;
+  if (/ VIRTUAL TABLE\b/.test(detail)) return false;
+  if (/^SCAN (\(|SUBQUERY\b|CONSTANT ROW\b)/.test(detail)) return false;
+  return true;
+}
 
 function literal(value) {
   if (value === null) return 'NULL';
@@ -54,7 +67,7 @@ EXPLAIN_CASES.forEach((testCase, index) => {
   const details = rows.map((row) => row.detail);
   const scansClicks = details.some((detail) => /\bSCAN (c|clicks)\b/.test(detail));
   const usedIndexes = CLICK_INDEXES.filter((name) => details.some((d) => d.includes(name)));
-  const scanned = testCase.noScan ? details.filter((detail) => /^SCAN /.test(detail)) : [];
+  const scanned = testCase.noScan ? details.filter(scansStoredTable) : [];
 
   let verdict;
   if (scanned.length > 0) {
@@ -89,4 +102,6 @@ if (failures > 0) {
   console.error(`${failures} of ${EXPLAIN_CASES.length} queries scan a table they must not scan.`);
   process.exit(1);
 }
-console.log(`All ${EXPLAIN_CASES.length} queries checked. None scans clicks, and the redirector scans nothing.`);
+console.log(
+  `All ${EXPLAIN_CASES.length} queries checked. None scans clicks, and no case marked noScan scans a stored table.`,
+);

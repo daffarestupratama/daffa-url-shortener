@@ -1,18 +1,27 @@
 import {
+  isPublicSlug,
+  normalizeHost,
   normalizeTag,
   normalizeTags,
+  normalizeUrlInput,
   validateSlug,
   validateUrl,
   type LinkInput,
   type LinkSort,
   type LinkStatusFilter,
+  type PublicCreateInput,
   type Range,
+  type Visibility,
 } from '@daffa/shared';
 import type { Context } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
+import { decodeCursor, type Cursor } from './cursor';
 import { ApiError, errorResponse } from './errors';
+import { MAX_TOKEN_LENGTH } from './turnstile';
 
 export const MAX_BODY_BYTES = 16 * 1024;
+/** A public request holds a URL, a slug and a token, each 2048 characters at most. */
+export const PUBLIC_MAX_BODY_BYTES = 8 * 1024;
 export const PAGE_SIZE = 10;
 
 const MAX_QUERY_LENGTH = 200;
@@ -26,6 +35,12 @@ const MAX_TAG_LENGTH = 40;
 export const jsonBodyLimit = bodyLimit({
   maxSize: MAX_BODY_BYTES,
   onError: (c) => errorResponse(c, 'payload_too_large'),
+});
+
+/** The tighter limit for the anonymous endpoint. */
+export const publicBodyLimit = bodyLimit({
+  maxSize: PUBLIC_MAX_BODY_BYTES,
+  onError: (c) => errorResponse(c, 'payload_too_large', 'The request body is larger than 8 KB.'),
 });
 
 const POSITIVE_INTEGER = /^[1-9][0-9]*$/;
@@ -65,17 +80,27 @@ export function parsePage(raw: string | undefined): number {
 }
 
 export interface ListQuery {
+  visibility: Visibility;
   /** Lowercased search text, or null when absent. */
   q: string | null;
+  /** Narrows private links only. Public links have no tags. */
   tag: string | null;
   status: LinkStatusFilter;
   sort: LinkSort;
+  /** Null on the first page. */
+  cursor: Cursor | null;
 }
 
+const VISIBILITIES: readonly Visibility[] = ['private', 'public'];
 const STATUSES: readonly LinkStatusFilter[] = ['all', 'active', 'inactive', 'expired'];
 const SORTS: readonly LinkSort[] = ['newest', 'oldest', 'clicks', 'least'];
 
 export function parseListQuery(query: Record<string, string | undefined>): ListQuery {
+  const visibility = (query.visibility || 'private') as Visibility;
+  if (!VISIBILITIES.includes(visibility)) {
+    throw new ApiError('bad_request', 'The visibility must be private or public.');
+  }
+
   const q = (query.q ?? '').trim().toLowerCase();
   if (q.length > MAX_QUERY_LENGTH) {
     throw new ApiError('bad_request', 'The search text must be 200 characters or fewer.');
@@ -99,7 +124,18 @@ export function parseListQuery(query: Record<string, string | undefined>): ListQ
     throw new ApiError('bad_request', 'The sort order must be newest, oldest, clicks, or least.');
   }
 
-  return { q: q || null, tag: tag || null, status, sort };
+  const cursor = query.cursor ? decodeCursor(query.cursor, visibility, sort) : null;
+
+  return { visibility, q: q || null, tag: tag || null, status, sort, cursor };
+}
+
+/** The search box of the blocked domains list. */
+export function parseSearch(raw: string | undefined): string | null {
+  const q = (raw ?? '').trim().toLowerCase();
+  if (q.length > MAX_QUERY_LENGTH) {
+    throw new ApiError('bad_request', 'The search text must be 200 characters or fewer.');
+  }
+  return q || null;
 }
 
 /** Escapes LIKE wildcards so the search text matches literally. Used with ESCAPE '\'. */
@@ -144,7 +180,9 @@ export function parseLinkInput(body: unknown, mode: 'create' | 'patch'): LinkInp
   const input: LinkInput = {};
 
   if ('url' in record) {
-    const url = requireString(record.url, 'url').trim();
+    // Stored as normalized, so example.com is saved as https://example.com.
+    // The length counts after normalization, prefix included.
+    const url = normalizeUrlInput(requireString(record.url, 'url'));
     if (url.length > MAX_URL_LENGTH) {
       throw new ApiError('invalid_url', 'Destination URL must be 2048 characters or fewer.');
     }
@@ -220,6 +258,57 @@ export function parseLinkInput(body: unknown, mode: 'create' | 'patch'): LinkInp
   }
 
   return input;
+}
+
+const PUBLIC_FIELDS: readonly string[] = ['url', 'slug', 'turnstileToken'];
+
+/**
+ * The shape of a public create body, checked before anything costs a lookup
+ * or a call to Turnstile. The URL itself is checked afterwards with
+ * checkPublicUrl. A missing or oversized token is refused here as a failed
+ * verification, without asking siteverify.
+ */
+export function parsePublicCreateBody(body: unknown): PublicCreateInput {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new ApiError('invalid_field', 'The request body must be a JSON object.');
+  }
+  const record = body as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (!PUBLIC_FIELDS.includes(key)) {
+      throw new ApiError('invalid_field', `The field "${key}" is not recognized.`);
+    }
+  }
+
+  const url = 'url' in record ? requireString(record.url, 'url') : '';
+
+  let slug: string | undefined;
+  if (record.slug !== undefined) {
+    slug = requireString(record.slug, 'slug');
+    if (!isPublicSlug(slug)) {
+      throw new ApiError(
+        'invalid_slug',
+        'Public slugs are 6 characters generated by the page. Press Generate for a new one.',
+      );
+    }
+  }
+
+  const token = record.turnstileToken;
+  if (record.turnstileToken !== undefined && typeof token !== 'string') {
+    throw new ApiError('invalid_field', 'The field "turnstileToken" must be text.');
+  }
+  if (typeof token !== 'string' || token.length === 0 || token.length > MAX_TOKEN_LENGTH) {
+    throw new ApiError('turnstile_failed');
+  }
+
+  return slug === undefined ? { url, turnstileToken: token } : { url, slug, turnstileToken: token };
+}
+
+/** A hostname typed or pasted by the owner, such as a URL or Example.COM. */
+export function parseHostInput(raw: unknown): string {
+  if (typeof raw !== 'string' || raw.length > 2048) throw new ApiError('invalid_host');
+  const host = normalizeHost(raw);
+  if (!host) throw new ApiError('invalid_host');
+  return host;
 }
 
 /** Reads the body as JSON. An empty body counts as an empty object. */

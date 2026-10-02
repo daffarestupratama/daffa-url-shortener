@@ -9,15 +9,16 @@ function build() {
   app.onError(handleError);
   app.use('*', csrfMiddleware);
   const ok = () => new Response('ok');
-  app.get('/api/links', ok);
-  app.post('/api/links', ok);
-  app.patch('/api/links/1', ok);
-  app.delete('/api/links/1', ok);
+  app.get('/api/admin/links', ok);
+  app.post('/api/admin/links', ok);
+  app.patch('/api/admin/links/1', ok);
+  app.delete('/api/admin/links/1', ok);
+  app.post('/api/public/links', ok);
   return app;
 }
 
 const app = build();
-const PROD = 'https://shorten.daffa.me';
+const PROD = 'https://link.daffa.me';
 const DEV = 'http://localhost:5173';
 const env = (overrides: Partial<Env> = {}): Env => ({ DB: {} as D1Database, ...overrides });
 
@@ -32,7 +33,7 @@ interface Send {
 
 async function send({
   method,
-  path = method === 'POST' || method === 'GET' ? '/api/links' : '/api/links/1',
+  path = method === 'POST' || method === 'GET' ? '/api/admin/links' : '/api/admin/links/1',
   base = PROD,
   origin = base,
   contentType = 'application/json',
@@ -87,7 +88,7 @@ describe('csrfMiddleware in production', () => {
       });
 
       it('refuses a lookalike origin', async () => {
-        for (const origin of ['https://shorten.daffa.me.evil.example', 'http://shorten.daffa.me']) {
+        for (const origin of ['https://link.daffa.me.evil.example', 'http://link.daffa.me', 'https://shorten.daffa.me']) {
           expect((await send({ method, origin })).status, origin).toBe(403);
         }
       });
@@ -101,11 +102,24 @@ describe('csrfMiddleware in production', () => {
   it('never trusts a localhost origin while the bypass is off', async () => {
     expect((await send({ method: 'POST', base: DEV })).status).toBe(403);
   });
+
+  it('applies the same origin rule to the public endpoint', async () => {
+    const path = '/api/public/links';
+    expect(PRODUCTION_ORIGIN).toBe(PROD);
+    expect((await send({ method: 'POST', path })).status).toBe(200);
+    expect(await send({ method: 'POST', path, origin: 'https://evil.example' })).toEqual({
+      status: 403,
+      code: 'csrf_rejected',
+    });
+    expect((await send({ method: 'POST', path, origin: null })).status).toBe(403);
+    expect((await send({ method: 'POST', path, contentType: 'text/plain' })).status).toBe(403);
+  });
 });
 
 describe('csrfMiddleware with the dev bypass', () => {
-  it('passes a same origin request from the local dashboard', async () => {
+  it('passes a same origin request from the local dashboard and public page', async () => {
     expect((await send({ method: 'POST', base: DEV, bypass: true })).status).toBe(200);
+    expect((await send({ method: 'POST', base: DEV, path: '/api/public/links', bypass: true })).status).toBe(200);
   });
 
   it('refuses another local port', async () => {

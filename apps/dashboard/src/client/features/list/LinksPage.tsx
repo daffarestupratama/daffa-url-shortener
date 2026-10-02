@@ -77,7 +77,7 @@ export function LinksPage() {
   const forced = flags.loading || flags.error || flags.empty || flags.noResults;
   const loading = flags.loading || (!forced && links.initial);
   const failed = flags.error || (!forced && !loading && links.error !== null && links.data === null);
-  const total = flags.empty ? 0 : (links.data?.total ?? 0);
+  const total = flags.empty ? 0 : (links.data?.counts.private.total ?? 0);
   const rows = flags.noResults ? [] : (links.data?.links ?? []);
   const empty = !loading && !failed && total === 0;
   const noResults = !loading && !failed && total > 0 && rows.length === 0;

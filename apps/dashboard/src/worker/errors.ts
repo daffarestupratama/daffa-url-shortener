@@ -34,26 +34,76 @@ export const ERRORS: Record<ErrorCode, { status: ContentfulStatusCode; message: 
     status: 503,
     message: 'The database did not respond. Short links keep working for visitors.',
   },
+  invalid_host: {
+    status: 400,
+    message: 'The hostname is not valid. Enter a domain name such as example.com.',
+  },
+  blocked_domain: {
+    status: 400,
+    message: 'The domain is blocked for public links and cannot be shortened.',
+  },
+  turnstile_failed: {
+    status: 403,
+    message: 'Verification failed or expired. Complete the check again, then press Create Link.',
+  },
+  turnstile_unavailable: {
+    status: 503,
+    message: 'The verification service did not respond. Try again in a moment.',
+  },
+  // The two limit messages are the design copy of the rate limit modals.
+  rate_limited_ip: {
+    status: 429,
+    message:
+      'Each visitor can create up to 5 public links per hour. Link creation becomes available again at the start of the next hour.',
+  },
+  rate_limited_global: {
+    status: 429,
+    message:
+      'The shared capacity for public links in this hour has been used by all visitors. Link creation becomes available again for everyone at the start of the next hour.',
+  },
+  public_not_configured: {
+    status: 500,
+    message: 'Public link creation is not configured on this server.',
+  },
 };
+
+/** Extra fields an error may carry next to code and message. */
+export type ErrorDetails = Omit<ApiErrorBody['error'], 'code' | 'message'>;
 
 export class ApiError extends Error {
   readonly code: ErrorCode;
   readonly status: ContentfulStatusCode;
+  readonly details: ErrorDetails;
+  /** Response headers that belong to this error, such as Retry-After on a 429. */
+  readonly headers: Record<string, string>;
 
-  constructor(code: ErrorCode, message?: string) {
+  constructor(
+    code: ErrorCode,
+    message?: string,
+    details: ErrorDetails = {},
+    headers: Record<string, string> = {},
+  ) {
     super(message ?? ERRORS[code].message);
     this.name = 'ApiError';
     this.code = code;
     this.status = ERRORS[code].status;
+    this.details = details;
+    this.headers = headers;
   }
 }
 
-export function errorBody(code: ErrorCode, message?: string): ApiErrorBody {
-  return { error: { code, message: message ?? ERRORS[code].message } };
+export function errorBody(code: ErrorCode, message?: string, details: ErrorDetails = {}): ApiErrorBody {
+  return { error: { code, message: message ?? ERRORS[code].message, ...details } };
 }
 
-export function errorResponse(c: Context, code: ErrorCode, message?: string): Response {
-  return c.json(errorBody(code, message), ERRORS[code].status);
+export function errorResponse(
+  c: Context,
+  code: ErrorCode,
+  message?: string,
+  details: ErrorDetails = {},
+  headers: Record<string, string> = {},
+): Response {
+  return c.json(errorBody(code, message, details), ERRORS[code].status, headers);
 }
 
 /**
@@ -63,7 +113,7 @@ export function errorResponse(c: Context, code: ErrorCode, message?: string): Re
  */
 export function handleError(error: Error, c: Context): Response {
   if (error instanceof ApiError) {
-    return errorResponse(c, error.code, error.message);
+    return errorResponse(c, error.code, error.message, error.details, error.headers);
   }
   if (typeof error.message === 'string' && error.message.startsWith('D1_')) {
     console.error('D1 request failed', error);

@@ -2,16 +2,20 @@ import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import type { AppEnv } from './env';
 import { ApiError, handleError } from './errors';
+import { encodeCursor } from './cursor';
 import {
   MAX_BODY_BYTES,
   jsonBodyLimit,
   likePattern,
+  parseHostInput,
   parseId,
   parseLinkInput,
   parseListQuery,
   parseOptionalId,
   parsePage,
+  parsePublicCreateBody,
   parseRange,
+  parseSearch,
 } from './validate';
 
 /** Runs `fn` and returns the ApiError it throws, so the code and message can be checked. */
@@ -76,7 +80,29 @@ describe('parsePage', () => {
 
 describe('parseListQuery', () => {
   it('defaults to everything, newest first', () => {
-    expect(parseListQuery({})).toEqual({ q: null, tag: null, status: 'all', sort: 'newest' });
+    expect(parseListQuery({})).toEqual({
+      visibility: 'private',
+      q: null,
+      tag: null,
+      status: 'all',
+      sort: 'newest',
+      cursor: null,
+    });
+  });
+
+  it('accepts both tabs and refuses anything else', () => {
+    expect(parseListQuery({ visibility: 'public' }).visibility).toBe('public');
+    expect(apiError(() => parseListQuery({ visibility: 'all' })).code).toBe('bad_request');
+  });
+
+  it('decodes a cursor of the same tab and sort, and refuses a foreign one', () => {
+    const cursor = { visibility: 'public', sort: 'clicks', key: 300, id: 14, asOf: 1 } as const;
+    const raw = encodeCursor(cursor);
+    expect(parseListQuery({ visibility: 'public', sort: 'clicks', cursor: raw }).cursor).toEqual(cursor);
+    expect(apiError(() => parseListQuery({ visibility: 'public', sort: 'newest', cursor: raw })).code).toBe(
+      'bad_request',
+    );
+    expect(apiError(() => parseListQuery({ cursor: 'garbage!' })).code).toBe('bad_request');
   });
 
   it('lowercases the search and normalizes the tag', () => {
@@ -153,6 +179,20 @@ describe('parseLinkInput', () => {
     );
   });
 
+  it('stores the URL normalized, on create and on patch', () => {
+    expect(parseLinkInput({ ...valid, url: '  example.com/a ' }, 'create').url).toBe('https://example.com/a');
+    expect(parseLinkInput({ url: 'HTTP://Example.com/A' }, 'patch').url).toBe('http://Example.com/A');
+    expect(apiError(() => parseLinkInput({ url: 'javascript:alert(1)' }, 'patch')).code).toBe('invalid_url');
+  });
+
+  it('counts the length after the https:// prefix is added', () => {
+    const bare = `example.com/${'a'.repeat(2040 - 'example.com/'.length)}`;
+    expect(parseLinkInput({ url: bare }, 'patch').url).toHaveLength(2048);
+    const error = apiError(() => parseLinkInput({ url: `${bare}x` }, 'patch'));
+    expect(error.code).toBe('invalid_url');
+    expect(error.message).toBe('Destination URL must be 2048 characters or fewer.');
+  });
+
   it('accepts a partial patch but not an empty one', () => {
     expect(parseLinkInput({ title: 'New' }, 'patch')).toEqual({ title: 'New' });
     expect(apiError(() => parseLinkInput({}, 'patch')).code).toBe('invalid_field');
@@ -191,10 +231,10 @@ describe('jsonBodyLimit', () => {
   const app = new Hono<AppEnv>();
   app.onError(handleError);
   app.use('*', jsonBodyLimit);
-  app.post('/api/links', async (c) => c.json({ size: (await c.req.text()).length }));
+  app.post('/api/admin/links', async (c) => c.json({ size: (await c.req.text()).length }));
 
   const post = (bytes: number) =>
-    app.request('https://shorten.daffa.me/api/links', {
+    app.request('https://link.daffa.me/api/admin/links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: 'x'.repeat(bytes),
@@ -209,5 +249,68 @@ describe('jsonBodyLimit', () => {
     const response = await post(MAX_BODY_BYTES + 1);
     expect(response.status).toBe(413);
     expect(await response.json()).toMatchObject({ error: { code: 'payload_too_large' } });
+  });
+});
+
+describe('parsePublicCreateBody', () => {
+  const token = 'XXXX.DUMMY.TOKEN.XXXX';
+
+  it('accepts url, slug and token, and leaves the slug out when absent', () => {
+    expect(parsePublicCreateBody({ url: 'example.com', slug: 'x7kq2m', turnstileToken: token })).toEqual({
+      url: 'example.com',
+      slug: 'x7kq2m',
+      turnstileToken: token,
+    });
+    expect(parsePublicCreateBody({ url: 'example.com', turnstileToken: token })).toEqual({
+      url: 'example.com',
+      turnstileToken: token,
+    });
+  });
+
+  it('treats a missing URL as empty, so checkPublicUrl reports it as required', () => {
+    expect(parsePublicCreateBody({ turnstileToken: token }).url).toBe('');
+  });
+
+  it('refuses owner fields such as tags or a title', () => {
+    for (const key of ['tags', 'title', 'expiresAt', 'isActive']) {
+      expect(apiError(() => parsePublicCreateBody({ url: 'a.com', turnstileToken: token, [key]: 'x' })).code).toBe(
+        'invalid_field',
+      );
+    }
+  });
+
+  it('only takes slugs a visitor could have drawn', () => {
+    for (const slug of ['cv', 'X7KQ2M', 'x7kq2m0', 'x7-q2m', 'assets', 'x7kq2o']) {
+      expect(apiError(() => parsePublicCreateBody({ url: 'a.com', slug, turnstileToken: token })).code, slug).toBe(
+        'invalid_slug',
+      );
+    }
+  });
+
+  it('refuses a missing, empty or oversized token as a failed verification', () => {
+    for (const turnstileToken of [undefined, '', 'x'.repeat(2049)]) {
+      expect(apiError(() => parsePublicCreateBody({ url: 'a.com', turnstileToken })).code).toBe('turnstile_failed');
+    }
+    expect(parsePublicCreateBody({ url: 'a.com', turnstileToken: 'x'.repeat(2048) }).turnstileToken).toHaveLength(2048);
+  });
+});
+
+describe('parseHostInput and parseSearch', () => {
+  it('normalizes a pasted URL, case and a trailing dot to one hostname', () => {
+    expect(parseHostInput('HTTPS://Sub.Example.ORG/path?x=1')).toBe('sub.example.org');
+    expect(parseHostInput(' example.com. ')).toBe('example.com');
+    expect(parseHostInput('bücher.de')).toBe('xn--bcher-kva.de');
+  });
+
+  it('refuses anything that is not a dotted hostname', () => {
+    for (const raw of ['', 'localhost', '127.0.0.1', '[::1]', 'not a host', 42, null, 'a.'.repeat(1100)]) {
+      expect(apiError(() => parseHostInput(raw)).code, String(raw).slice(0, 20)).toBe('invalid_host');
+    }
+  });
+
+  it('lowercases the search and caps it at 200 characters', () => {
+    expect(parseSearch('  PROMO ')).toBe('promo');
+    expect(parseSearch(undefined)).toBeNull();
+    expect(apiError(() => parseSearch('a'.repeat(201))).code).toBe('bad_request');
   });
 });

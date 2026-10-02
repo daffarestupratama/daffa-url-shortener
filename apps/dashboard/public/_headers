@@ -1,7 +1,15 @@
 # Applied by Workers Static Assets to every static response, including the
-# SPA fallback. Responses from the API Worker (/api/*) are not affected.
+# SPA fallback. Responses from the API Worker (/api/*) are not affected, it
+# sets its own X-Robots-Tag and Cache-Control.
 /*
   X-Frame-Options: DENY
   Content-Security-Policy: frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+
+# The public page at / is indexed. The dashboard never is, whatever links to it.
+/dashboard
+  X-Robots-Tag: noindex
+
+/dashboard/*
+  X-Robots-Tag: noindex
