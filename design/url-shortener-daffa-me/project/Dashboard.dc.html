@@ -75,6 +75,12 @@ button,input,select,textarea{font-family:inherit}
       </span>
       <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">{{ kpi.topTitle }}</span>
     </div>
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+      <span style="font:700 11px/1.2 var(--font);letter-spacing:.16em;color:var(--ink2)">PUBLIC CLICKS · TODAY</span>
+      <span style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font:800 40px/1 var(--font);font-variant-numeric:tabular-nums">{{ kpi.pubToday }}</span><span style="font:500 15px/1 var(--font);color:var(--ink2);font-variant-numeric:tabular-nums">/ 20,000</span></span>
+      <div role="progressbar" aria-label="Daily public click budget used" aria-valuemin="0" aria-valuemax="20000" aria-valuenow="{{ kpi.pubTodayRaw }}" style="height:12px;border-radius:999px;border:1px solid var(--hair);background:var(--bg);box-shadow:inset 2px 2px 4px #B8C0CC,inset -2px -2px 4px #FFFFFF;padding:2px"><div style="height:100%;min-width:6px;width:{{ kpi.pubPct }};border-radius:999px;background:{{ kpi.pubBar }}"></div></div>
+      <span style="font:400 14px/1.4 var(--font);color:var(--ink2)">{{ kpi.pubPctText }} of daily budget · {{ kpi.pubTotal }} public links</span>
+    </div>
   </div>
   </sc-if>
 
@@ -104,12 +110,22 @@ button,input,select,textarea{font-family:inherit}
       <span style="position:absolute;right:16px;top:15px;pointer-events:none;font:700 13px var(--font)">▾</span>
       <sc-if value="{{ ddSort }}">
         <div role="listbox" style="position:absolute;right:0;top:56px;z-index:40;min-width:100%;width:max-content;max-height:320px;overflow:auto;background:var(--bg);border-radius:14px;border:1px solid var(--line);box-shadow:var(--raise-lg);padding:6px;display:flex;flex-direction:column;gap:4px">
-          <sc-for list="{{ sortOpts }}" as="o"><button role="option" aria-selected="{{ o.sel }}" onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--bg);box-shadow:{{ o.shadow }};text-align:left;font-family:var(--font);font-size:15px;font-weight:{{ o.fw }};color:var(--ink);cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)"><span>{{ o.label }}</span><span aria-hidden="true" style="font-weight:800;color:var(--link)">{{ o.check }}</span></button></sc-for>
+          <sc-for list="{{ sortOpts }}" as="o" hint-placeholder-count="2"><button role="option" aria-selected="{{ o.sel }}" onClick="{{ o.onClick }}" style="display:flex;align-items:center;justify-content:space-between;gap:20px;height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--bg);box-shadow:{{ o.shadow }};text-align:left;font-family:var(--font);font-size:15px;font-weight:{{ o.fw }};color:var(--ink);cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)"><span>{{ o.label }}</span><span aria-hidden="true" style="font-weight:800;color:var(--link)">{{ o.check }}</span></button></sc-for>
         </div>
       </sc-if>
     </div>
+    <button onClick="{{ openBlocked }}" style="display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="6"></circle><path d="M3.8 12.2l8.4-8.4"></path></svg>Blocked Domains<span style="min-width:24px;height:22px;padding:0 7px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:var(--track);font:700 12px/1 var(--font);font-variant-numeric:tabular-nums">{{ blockedCount }}</span></button>
   </div>
   </sc-if>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px 20px;flex-wrap:wrap;margin:4px 0 -8px">
+    <div role="tablist" aria-label="Link tables" style="display:flex;gap:4px;padding:4px;border-radius:14px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);flex-wrap:wrap">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="2">
+        <button role="tab" aria-selected="{{ t.on }}" onClick="{{ t.onClick }}" style="display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 18px;border-radius:10px;border:0;background:var(--bg);color:{{ t.color }};font-family:var(--font);font-weight:{{ t.fw }};font-size:16px;box-shadow:{{ t.shadow }};cursor:pointer;white-space:nowrap">{{ t.label }}<span style="min-width:28px;height:24px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:var(--track);color:var(--ink);font:700 13px/1 var(--font);font-variant-numeric:tabular-nums">{{ t.count }}</span></button>
+      </sc-for>
+    </div>
+    <span style="font:400 14px/1.4 var(--font);color:var(--ink2);text-wrap:pretty">{{ tabDesc }}</span>
+  </div>
 
   <sc-if value="{{ isLoading }}">
     <div aria-busy="true" style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);overflow:hidden">
@@ -198,7 +214,84 @@ button,input,select,textarea{font-family:inherit}
           </div>
         </div>
       </sc-for>
+      <sc-if value="{{ privMore }}">
+        <div ref="{{ privRef }}" data-which="priv" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 22px 22px;border-top:1px solid var(--hair)">
+          <span style="font:400 14px/1.3 var(--font);color:var(--ink2);font-variant-numeric:tabular-nums">{{ privMoreText }}</span>
+          <button onClick="{{ privLoadMore }}" disabled="{{ privLoading }}" aria-busy="{{ privBusy }}" style="display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 20px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:{{ privBtnShadow }};cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)">{{ privLoadLabel }}</button>
+        </div>
+      </sc-if>
     </div>
+  </sc-if>
+
+  <sc-if value="{{ showPub }}" hint-placeholder-val="{{ true }}">
+  <sc-if value="{{ pubEmpty }}">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:44px clamp(20px,4vw,48px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px">
+      <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 24px/1 var(--mono);padding:11px 16px;border-radius:10px;letter-spacing:.04em"><span style="color:#8E97A6">/</span>_ _ _ _ _ _</span>
+      <h3 style="margin:0;font:800 22px/1.2 var(--font)">No public links yet</h3>
+      <p style="margin:0;max-width:460px;font:400 15px/1.55 var(--font);color:var(--ink2);text-wrap:pretty">Links created by visitors on link.daffa.me will appear here with their slug, destination, and daily clicks.</p>
+    </div>
+  </sc-if>
+  <sc-if value="{{ pubNoResults }}">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg);padding:40px clamp(20px,4vw,48px);display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px">
+      <h3 style="margin:0;font:800 20px/1.2 var(--font)">No matching public links</h3>
+      <p style="margin:0;font:400 15px/1.5 var(--font);color:var(--ink2)">Try another keyword or reset the status filter. Public links have no expiration.</p>
+      <button onClick="{{ resetFilters }}" style="height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-active="box-shadow:var(--inset)">Reset Filters</button>
+    </div>
+  </sc-if>
+  <sc-if value="{{ pubHasRows }}" hint-placeholder-val="{{ true }}">
+    <div style="background:var(--bg);border-radius:16px;box-shadow:var(--raise-lg)">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;padding:14px 22px;border-bottom:1px solid var(--hair);font:700 12px/1.3 var(--font);letter-spacing:.16em;color:var(--ink2)">
+        <span>{{ pubCaption }}</span><span>CLICKS · DAILY LIMIT 500</span>
+      </div>
+      <sc-if value="{{ pubTagNote }}"><div role="note" style="padding:10px 22px;border-bottom:1px solid var(--hair);font:500 14px/1.4 var(--font);color:var(--ink2)">The tag filter applies only to private links. Public links have no tags.</div></sc-if>
+      <sc-for list="{{ pubRows }}" as="row" hint-placeholder-count="5">
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;padding:18px 22px;border-bottom:{{ row.sep }}">
+          <div style="display:flex;flex-direction:column;align-items:flex-start;gap:10px;flex:none;min-width:196px">
+            <span style="background:{{ row.statusBg }};color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">{{ row.statusLabel }}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 16px/1 var(--mono);padding:10px 12px;border-radius:8px;letter-spacing:.04em;min-width:108px"><span style="color:#8E97A6">/</span>{{ row.slug }}</span>
+              <button onClick="{{ row.onCopy }}" aria-label="{{ row.copyAria }}" title="Copy short link" style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:var(--raise-sm);cursor:pointer;padding:0" style-active="box-shadow:var(--inset)">
+                <sc-if value="{{ row.isCopied }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1E7F4F" stroke-width="2.4"><path d="M3 8.5l3 3 7-7"></path></svg></sc-if>
+                <sc-if value="{{ row.notCopied }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"></path></svg></sc-if>
+              </button>
+            </div>
+          </div>
+          <div style="flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:4px">
+            <span style="font:700 16px/1.3 var(--font);overflow-wrap:anywhere">{{ row.host }}</span>
+            <a href="{{ row.url }}" target="_blank" rel="noopener nofollow" style="min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font:400 13px/1.4 var(--mono);color:var(--link)">{{ row.full }}</a>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:110px">
+            <span style="font:700 11px/1 var(--font);letter-spacing:.14em;color:var(--ink2)">CREATED</span>
+            <span style="font:700 14px/1.3 var(--font)">{{ row.created }}</span>
+            <span style="font:400 12px/1.2 var(--font);color:var(--ink2);font-variant-numeric:tabular-nums">{{ row.createdTime }}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:150px">
+            <span style="display:flex;align-items:baseline;gap:6px"><span style="font:800 22px/1 var(--font);font-variant-numeric:tabular-nums">{{ row.total }}</span><span style="font:400 12px/1 var(--font);color:var(--ink2)">total</span></span>
+            <div style="height:8px;border-radius:2px;background:var(--track)"><div style="height:8px;border-radius:2px;background:{{ row.todayBar }};width:{{ row.todayW }}"></div></div>
+            <span style="font:400 12px/1.2 var(--font);color:var(--ink2);font-variant-numeric:tabular-nums">Today <strong style="font-weight:800;color:var(--ink)">{{ row.today }}</strong> / 500</span>
+          </div>
+          <div style="position:relative;display:flex;gap:8px;margin-left:auto">
+            <button onClick="{{ row.onQR }}" title="Show QR code" aria-label="Show QR code" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:var(--raise-sm);cursor:pointer;padding:0" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1"></rect><rect x="10" y="2" width="6" height="6" rx="1"></rect><rect x="2" y="10" width="6" height="6" rx="1"></rect><rect x="11" y="11" width="4" height="4"></rect></svg></button>
+            <button onClick="{{ row.onMenu }}" title="More actions" aria-label="More actions" aria-expanded="{{ row.menuOpen }}" style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:{{ row.menuShadow }};cursor:pointer;padding:0"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><circle cx="3.5" cy="9" r="1.7"></circle><circle cx="9" cy="9" r="1.7"></circle><circle cx="14.5" cy="9" r="1.7"></circle></svg></button>
+            <sc-if value="{{ row.menuOpen }}">
+              <div role="menu" style="position:absolute;right:0;top:50px;z-index:40;min-width:240px;background:var(--bg);border-radius:14px;border:1px solid var(--line);box-shadow:var(--raise-lg);padding:6px;display:flex;flex-direction:column">
+                <button role="menuitem" onClick="{{ row.onToggle }}" style="height:44px;padding:0 14px;border:0;border-radius:10px;background:transparent;text-align:left;font:700 15px var(--font);color:var(--ink);cursor:pointer" style-hover="background:var(--bg-hover)">{{ row.toggleLabel }}</button>
+                <button role="menuitem" onClick="{{ row.onBlock }}" aria-disabled="{{ row.blockDisabled }}" style="height:44px;padding:0 14px;border:0;border-radius:10px;background:transparent;text-align:left;font:700 15px var(--font);color:{{ row.blockColor }};cursor:pointer" style-hover="background:var(--bg-hover)">{{ row.blockLabel }}</button>
+                <div style="height:1px;background:var(--hair);margin:4px 8px"></div>
+                <button role="menuitem" onClick="{{ row.onDelete }}" style="height:44px;padding:0 14px;border:0;border-radius:10px;background:transparent;text-align:left;font:700 15px var(--font);color:var(--danger);cursor:pointer" style-hover="background:#F6E3E3">Delete link</button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-for>
+      <sc-if value="{{ pubMore }}">
+        <div ref="{{ pubRef }}" data-which="pub" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 22px 22px;border-top:1px solid var(--hair)">
+          <span style="font:400 14px/1.3 var(--font);color:var(--ink2);font-variant-numeric:tabular-nums">{{ pubMoreText }}</span>
+          <button onClick="{{ pubLoadMore }}" disabled="{{ pubLoading }}" aria-busy="{{ pubBusy }}" style="display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 20px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:{{ pubBtnShadow }};cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)">{{ pubLoadLabel }}</button>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
   </sc-if>
 </sc-if>
 
@@ -582,12 +675,94 @@ button,input,select,textarea{font-family:inherit}
   </div>
 </sc-if>
 
+<sc-if value="{{ hasPubDel }}">
+  <div style="position:fixed;inset:0;z-index:70;background:rgba(20,23,28,0.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div role="alertdialog" aria-modal="true" aria-labelledby="pdel-title" aria-describedby="pdel-desc" style="width:min(500px,100%);background:var(--bg);border-radius:16px;box-shadow:var(--lift);padding:26px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 32px);overflow:auto">
+      <span style="align-self:flex-start;background:var(--danger);color:#fff;font:800 11px/1 var(--font);letter-spacing:.16em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">PERMANENT DELETE</span>
+      <h2 id="pdel-title" style="margin:0;font:800 22px/1.25 var(--font)">Delete public link daffa.me/{{ pdel.slug }}?</h2>
+      <p id="pdel-desc" style="margin:0;font:400 15px/1.55 var(--font);color:var(--ink);text-wrap:pretty">The link and its {{ pdel.total }} recorded clicks will be deleted. The slug <strong style="font-family:var(--mono)">{{ pdel.slug }}</strong> becomes available again and may be assigned to a new public link. Visitors who open this address will see the link not found page.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:14px;border-radius:12px;border:1px solid var(--hair);box-shadow:var(--inset)">
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font:800 12px/1.2 var(--font);letter-spacing:.12em;color:var(--danger)">DELETE</span><span style="font:400 13px/1.45 var(--font);color:var(--ink2)">Slug is released for reuse.</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font:800 12px/1.2 var(--font);letter-spacing:.12em;color:var(--off)">DISABLE</span><span style="font:400 13px/1.45 var(--font);color:var(--ink2)">Slug stays reserved and can be enabled again.</span></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding-top:4px">
+        <button onClick="{{ closePubDel }}" style="height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-active="box-shadow:var(--inset)">Cancel</button>
+        <sc-if value="{{ pdel.canDisable }}"><button onClick="{{ pubDisableInstead }}" style="height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-active="box-shadow:var(--inset)">Disable Instead</button></sc-if>
+        <button onClick="{{ doPubDelete }}" style="height:48px;padding:0 20px;border-radius:12px;border:1px solid #8E1C1C;background:var(--danger);color:#FFFFFF;font:800 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-hover="background:#B02323" style-active="box-shadow:inset 3px 3px 6px #8E1C1C,inset -2px -2px 5px #E25555">Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasBlock }}">
+  <div style="position:fixed;inset:0;z-index:70;background:rgba(20,23,28,0.55);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div role="alertdialog" aria-modal="true" aria-labelledby="blk-title" aria-describedby="blk-desc" style="width:min(520px,100%);background:var(--bg);border-radius:16px;box-shadow:var(--lift);padding:26px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 32px);overflow:auto">
+      <span style="align-self:flex-start;background:var(--danger);color:#fff;font:800 11px/1 var(--font);letter-spacing:.16em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">BLOCK DOMAIN</span>
+      <h2 id="blk-title" style="margin:0;font:800 22px/1.25 var(--font);overflow-wrap:anywhere">Block {{ blk.host }} for public links?</h2>
+      <p id="blk-desc" style="margin:0;font:400 15px/1.55 var(--font);color:var(--ink);text-wrap:pretty">New public links to {{ blk.host }} and its subdomains will be rejected on link.daffa.me. Private links are not affected. The domain can be removed from the block list later.</p>
+      <sc-if value="{{ blk.hasActive }}">
+        <button role="checkbox" aria-checked="{{ blk.also }}" onClick="{{ toggleBlockAlso }}" style="display:flex;align-items:flex-start;gap:14px;width:100%;padding:14px;border-radius:12px;border:1px solid var(--hair);background:var(--bg);text-align:left;cursor:pointer;color:var(--ink)">
+          <span style="flex:none;width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--bg);box-shadow:{{ blk.checkShadow }};display:flex;align-items:center;justify-content:center">
+            <sc-if value="{{ blk.checked }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1E7F4F" stroke-width="2.6"><path d="M3 8.5l3 3 7-7"></path></svg></sc-if>
+          </span>
+          <span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font:700 15px/1.35 var(--font);overflow-wrap:anywhere">{{ blk.alsoLabel }}</span><span style="font:400 13px/1.45 var(--font);color:var(--ink2)">Disabled links keep their slugs reserved and can be enabled again later.</span></span>
+        </button>
+      </sc-if>
+      <sc-if value="{{ blk.noActive }}"><p style="margin:0;font:400 14px/1.5 var(--font);color:var(--ink2)">No active public links point to this domain.</p></sc-if>
+      <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding-top:4px">
+        <button onClick="{{ closeBlock }}" style="height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-active="box-shadow:var(--inset)">Cancel</button>
+        <button onClick="{{ doBlock }}" style="height:48px;padding:0 20px;border-radius:12px;border:1px solid #8E1C1C;background:var(--danger);color:#FFFFFF;font:800 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-hover="background:#B02323" style-active="box-shadow:inset 3px 3px 6px #8E1C1C,inset -2px -2px 5px #E25555">Block Domain</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasBlockedList }}">
+  <div onClick="{{ closeBlocked }}" style="position:fixed;inset:0;z-index:60;background:rgba(20,23,28,0.5);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div role="dialog" aria-modal="true" aria-labelledby="bl-title" onClick="{{ stop }}" style="width:min(580px,100%);background:var(--bg);border-radius:16px;box-shadow:var(--lift);padding:26px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 32px);overflow:auto">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font:700 11px/1 var(--font);letter-spacing:.18em;color:var(--ink2)">PUBLIC LINKS</span>
+          <h2 id="bl-title" style="margin:0;font:800 22px/1.25 var(--font)">Blocked Domains</h2>
+        </div>
+        <button onClick="{{ closeBlocked }}" aria-label="Close" style="flex:none;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--raise-sm);font:700 20px/1 var(--font);color:var(--ink);cursor:pointer" style-active="box-shadow:var(--inset)">×</button>
+      </div>
+      <p style="margin:0;font:400 14px/1.55 var(--font);color:var(--ink2);text-wrap:pretty">Public links to these hostnames and their subdomains are rejected. Private links are not affected.</p>
+      <sc-if value="{{ blockedEmpty }}"><div style="padding:28px 16px;border-radius:12px;box-shadow:var(--inset);text-align:center;font:500 15px/1.5 var(--font);color:var(--ink2)">No blocked domains.</div></sc-if>
+      <sc-if value="{{ blockedAny }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label style="position:relative;display:block">
+            <span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Search blocked domains</span>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#4A5260" stroke-width="2" style="position:absolute;left:14px;top:15px"><circle cx="7.5" cy="7.5" r="5.5"></circle><path d="M12 12l4 4"></path></svg>
+            <input type="search" value="{{ blockedQ }}" onChange="{{ onBlockedQ }}" placeholder="Search hostname" style="width:100%;height:48px;padding:0 14px 0 42px;border-radius:12px;border:1px solid var(--line);background:var(--bg);box-shadow:var(--inset);font:400 15px var(--mono);color:var(--ink)">
+          </label>
+          <span aria-live="polite" style="font:500 13px/1.3 var(--font);color:var(--ink2);font-variant-numeric:tabular-nums">{{ blockedCaption }}</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ blockedNoMatch }}"><div style="padding:24px 16px;border-radius:12px;box-shadow:var(--inset);text-align:center;font:500 15px/1.5 var(--font);color:var(--ink2)">No blocked domain matches the search.</div></sc-if>
+      <sc-if value="{{ blockedHas }}" hint-placeholder-val="{{ true }}">
+        <div tabIndex="0" aria-label="Blocked domain list" style="max-height:360px;overflow-y:auto;overscroll-behavior:contain;border-radius:12px;border:1px solid var(--hair);box-shadow:var(--inset);padding:4px 16px">
+          <sc-for list="{{ blockedRows }}" as="b" hint-placeholder-count="3">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:12px 0;border-bottom:{{ b.sep }}">
+              <div style="flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:4px">
+                <span style="font:700 15px/1.3 var(--mono);overflow-wrap:anywhere">{{ b.host }}</span>
+                <span style="font:400 13px/1.3 var(--font);color:var(--ink2)">{{ b.added }}</span>
+              </div>
+              <button onClick="{{ b.onRemove }}" aria-label="{{ b.aria }}" style="height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 14px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)">Remove</button>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</sc-if>
+
 <sc-if value="{{ hasToast }}">
   <div role="status" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:80;background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font:500 15px/1.3 var(--font);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 32px)"><span style="width:8px;height:8px;border-radius:50%;background:var(--sign)"></span>{{ toast }}</div>
 </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;listState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;normal&quot;,&quot;loading&quot;,&quot;empty&quot;,&quot;error&quot;],&quot;default&quot;:&quot;normal&quot;,&quot;tsType&quot;:&quot;'normal'|'loading'|'empty'|'error'&quot;,&quot;section&quot;:&quot;States&quot;},&quot;detailState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;data&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;data&quot;,&quot;tsType&quot;:&quot;'data'|'empty'&quot;,&quot;section&quot;:&quot;States&quot;},&quot;startView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;list&quot;,&quot;detail&quot;],&quot;default&quot;:&quot;list&quot;,&quot;tsType&quot;:&quot;'list'|'detail'&quot;,&quot;section&quot;:&quot;States&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;listState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;normal&quot;,&quot;loading&quot;,&quot;empty&quot;,&quot;error&quot;],&quot;default&quot;:&quot;normal&quot;,&quot;tsType&quot;:&quot;'normal'|'loading'|'empty'|'error'&quot;,&quot;section&quot;:&quot;States&quot;},&quot;detailState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;data&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;data&quot;,&quot;tsType&quot;:&quot;'data'|'empty'&quot;,&quot;section&quot;:&quot;States&quot;},&quot;startView&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;list&quot;,&quot;detail&quot;],&quot;default&quot;:&quot;list&quot;,&quot;tsType&quot;:&quot;'list'|'detail'&quot;,&quot;section&quot;:&quot;States&quot;},&quot;publicState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;normal&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;normal&quot;,&quot;tsType&quot;:&quot;'normal'|'empty'&quot;,&quot;section&quot;:&quot;States&quot;}}">
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const pad=n=>String(n).padStart(2,'0');
 const nf=n=>Math.round(n).toLocaleString('en-US');
@@ -648,19 +823,36 @@ const BOTROWS=[
 const HF=[.12,.08,.06,.05,.07,.18,.45,.9,1.3,1.5,1.4,1.3,1.35,1.4,1.3,1.2,1.1,1.05,1.2,1.5,1.6,1.4,.9,.4];
 const RANGES=[['24j','24 hours'],['7h','7 days'],['30h','30 days'],['90h','90 days'],['semua','All']];
 const RANGE_TEXT={'24j':'in the last 24 hours','7h':'in the last 7 days','30h':'in the last 30 days','90h':'in the last 90 days','semua':'since the link was created'};
+const PUB_SEED=[
+ {id:'p1',slug:'x7kq2m',url:'https://docs.google.com/forms/d/e/1FAIpQLSd3kR9vQx/viewform',created:D(2026,9,27,9,41),total:318,today:41,status:'aktif'},
+ {id:'p2',slug:'bn4tzw',url:'https://www.tokopedia.com/tokobukuilmu/buku-statistika-dasar-edisi-3',created:D(2026,9,26,20,12),total:1204,today:212,status:'aktif'},
+ {id:'p3',slug:'r9pd3v',url:'https://www.youtube.com/watch?v=Qm7kL2xTn4E',created:D(2026,9,25,15,3),total:4870,today:500,status:'aktif'},
+ {id:'p4',slug:'h2mc8e',url:'https://www.notion.so/Catatan-Kuliah-Basis-Data-3f9a1c7e2b',created:D(2026,9,24,11,27),total:96,today:7,status:'aktif'},
+ {id:'p5',slug:'tq6wna',url:'https://grabgift-promo.com/klaim-voucher?ref=wa',created:D(2026,9,23,22,48),total:57,today:0,status:'nonaktif'},
+ {id:'p6',slug:'ze3k9r',url:'https://drive.google.com/drive/folders/1Xk9pQ2mRv7Ls',created:D(2026,9,22,8,15),total:731,today:64,status:'aktif'},
+ {id:'p7',slug:'m4vj7s',url:'https://www.canva.com/design/DAGk2Lm9xQ/view',created:D(2026,9,20,19,2),total:263,today:18,status:'aktif'},
+ {id:'p8',slug:'c8np2x',url:'https://github.com/rizkyprtm/tugas-akhir-sentimen',created:D(2026,9,18,13,36),total:142,today:9,status:'aktif'},
+];
+const BLOCK_SEED=[{host:'hadiah-dana-kaget.xyz',added:D(2026,9,30,18,22)},{host:'shopee-voucher-gratis.click',added:D(2026,9,29,11,4)},{host:'bri-update-data.online',added:D(2026,9,28,8,51)},{host:'slot-gacor-maxwin.vip',added:D(2026,9,27,23,10)},{host:'pinjol-cepat-cair.biz',added:D(2026,9,26,14,37)},{host:'claim-airdrop-usdt.io',added:D(2026,9,25,9,2)},{host:'wa-verifikasi-akun.net',added:D(2026,9,25,6,44)},{host:'grabgift-promo.com',added:D(2026,9,24,7,5)},{host:'login-verif-bca.site',added:D(2026,9,12,21,40)},{host:'freebet88.net',added:D(2026,8,30,10,18)}];
+const hostOf=u=>{try{return new URL(u).hostname.replace(/^www\./,'');}catch(e){return u;}};
+const PUB_LIMIT=500,PUB_BUDGET=20000,PAGE=6;
 const toLocalInput=d=>d?`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`:'';
 const hostPath=u=>u.replace(/^https?:\/\//,'').replace(/^www\./,'');
 
 class Component extends DCLogic {
-  state={dd:null,view:null,detailId:1,links:SEED.map(l=>({...l,tags:[...l.tags]})),q:'',tag:'semua',status:'semua',sort:'terbaru',menuFor:null,copied:null,form:null,qrFor:null,confirmDel:null,range:'30h',logPage:0,toast:null,override:null,nextId:10,qrTick:0};
+  state={tab:'private',privShown:PAGE,pubShown:PAGE,loadingMore:null,pub:PUB_SEED.map(x=>({...x})),blocked:BLOCK_SEED.map(x=>({...x})),blockFor:null,blockAlso:true,showBlocked:false,pubDel:null,dd:null,view:null,detailId:1,links:SEED.map(l=>({...l,tags:[...l.tags]})),q:'',tag:'semua',status:'semua',sort:'terbaru',menuFor:null,copied:null,form:null,qrFor:null,confirmDel:null,range:'30h',logPage:0,toast:null,override:null,nextId:10,qrTick:0};
   cache={};
+  mkRef(k){return el=>{const old=this[k+'El'];if(old&&this.io)this.io.unobserve(old);this[k+'El']=el;if(el&&this.io)this.io.observe(el);};}
+  privRef=this.mkRef('priv');pubRef=this.mkRef('pub');
+  loadMore(k){if(this.state.loadingMore)return;this.setState({loadingMore:k});clearTimeout(this.lm);this.lm=setTimeout(()=>this.setState(s=>({loadingMore:null,[k+'Shown']:s[k+'Shown']+PAGE})),700);}
   componentDidMount(){
+    try{this.io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)this.loadMore(e.target.dataset.which);}),{rootMargin:'120px'});['priv','pub'].forEach(k=>{if(this[k+'El'])this.io.observe(this[k+'El']);});}catch(e){}
     this.onDoc=e=>{if(this.state.dd&&!e.target.closest('[data-dd]'))this.setState({dd:null});};document.addEventListener('mousedown',this.onDoc);
     this.qrPoll=setInterval(()=>{if(window.qrcode){clearInterval(this.qrPoll);this.setState({qrTick:1});}},150);
-    this.onKey=e=>{if(e.key==='Escape'){if(this.state.dd)this.setState({dd:null});else if(this.state.confirmDel)this.setState({confirmDel:null});else if(this.state.qrFor)this.setState({qrFor:null});else if(this.state.form)this.setState({form:null});else if(this.state.menuFor)this.setState({menuFor:null});}};
+    this.onKey=e=>{if(e.key==='Escape'){if(this.state.dd)this.setState({dd:null});else if(this.state.pubDel)this.setState({pubDel:null});else if(this.state.blockFor)this.setState({blockFor:null});else if(this.state.showBlocked)this.setState({showBlocked:false});else if(this.state.confirmDel)this.setState({confirmDel:null});else if(this.state.qrFor)this.setState({qrFor:null});else if(this.state.form)this.setState({form:null});else if(this.state.menuFor)this.setState({menuFor:null});}};
     window.addEventListener('keydown',this.onKey);
   }
-  componentWillUnmount(){document.removeEventListener('mousedown',this.onDoc);clearInterval(this.qrPoll);window.removeEventListener('keydown',this.onKey);clearTimeout(this.tt);clearTimeout(this.ct);}
+  componentWillUnmount(){if(this.io)this.io.disconnect();clearTimeout(this.lm);document.removeEventListener('mousedown',this.onDoc);clearInterval(this.qrPoll);window.removeEventListener('keydown',this.onKey);clearTimeout(this.tt);clearTimeout(this.ct);}
   toastMsg(m){clearTimeout(this.tt);this.setState({toast:m});this.tt=setTimeout(()=>this.setState({toast:null}),2400);}
   copy(l){try{navigator.clipboard&&navigator.clipboard.writeText('https://daffa.me/'+l.slug).catch(()=>{});}catch(e){}clearTimeout(this.ct);this.setState({copied:l.id});this.ct=setTimeout(()=>this.setState({copied:null}),1600);this.toastMsg('daffa.me/'+l.slug+' copied to clipboard');}
   daily(l){
@@ -785,12 +977,15 @@ class Component extends DCLogic {
     const k7=links.reduce((a,l)=>{const t=w7(l);return{h:a.h+t.h,u:a.u+t.u};},{h:0,u:0});
     const top=[...links].sort((a,b)=>w7(b).h-w7(a).h)[0];
     const isNormal=listState==='normal';
+    const tabPriv=s.tab!=='public';
+    const rowsAll=rows;const privVisible=rowsAll.slice(0,s.privShown);
     const out={
       isList:view==='daftar',isDetail:view==='detail',
       goList:()=>{this.setState({view:'daftar',menuFor:null});window.scrollTo(0,0);},
       openCreate:this.openCreate,
-      showKpi:isNormal&&links.length>0,showToolbar:isNormal&&links.length>0,
-      kpi:{active:nf(links.filter(l=>l.status==='aktif').length),total:nf(links.length),human:nf(k7.h),unique:nf(k7.u),topSlug:top?top.slug:'',topClicks:top?nf(w7(top).h):'0',topTitle:top?top.title+' · human clicks':''},
+      showKpi:isNormal&&links.length>0,showToolbar:isNormal&&(links.length>0||s.pub.length>0),
+      kpi:{active:nf(links.filter(l=>l.status==='aktif').length),total:nf(links.length),human:nf(k7.h),unique:nf(k7.u),topSlug:top?top.slug:'',topClicks:top?nf(w7(top).h):'0',topTitle:top?top.title+' · human clicks':'',
+        ...(()=>{const t=s.pub.reduce((a,x)=>a+x.today,0);const pc=t/PUB_BUDGET*100;return{pubToday:nf(t),pubTodayRaw:t,pubPct:Math.min(100,pc).toFixed(1)+'%',pubPctText:(pc<10?pc.toFixed(1):Math.round(pc))+'%',pubBar:pc>=90?'var(--danger)':pc>=70?'var(--exp)':'var(--ink)',pubTotal:nf(s.pub.length)};})()},
       q:s.q,onQ:e=>this.setState({q:e.target.value}),allTags,
       ...(()=>{const mk=(cur,k,label,field)=>({label,sel:cur===k?'true':'false',shadow:cur===k?'var(--inset)':'none',fw:cur===k?800:500,check:cur===k?'✓':'',onClick:()=>this.setState({[field]:k,dd:null})});
         const tagList=[['semua','All tags'],...allTags.map(t=>[t,'#'+t])];const sortList=[['terbaru','Sort: Newest'],['klik','Sort: Most clicks']];
@@ -800,15 +995,54 @@ class Component extends DCLogic {
           ddTagSh:s.dd==='tag'?'var(--inset)':'var(--raise-sm)',ddSortSh:s.dd==='sort'?'var(--inset)':'var(--raise-sm)',
           tagOpts:tagList.map(([k,l])=>mk(s.tag,k,l,'tag')),sortOpts:sortList.map(([k,l])=>mk(s.sort,k,l,'sort'))};})(),
       statusOpts:[['semua','All'],['aktif','Active'],['nonaktif','Inactive'],['kedaluwarsa','Expired']].map(([k,label])=>({label,...segO(s.status===k),onClick:()=>this.setState({status:k})})),
-      isLoading:listState==='loading',skel:[1,2,3,4,5],
-      isError:listState==='error',retry:()=>{this.setState({override:'loading'});setTimeout(()=>this.setState({override:'normal'}),1200);},
-      isEmpty:isNormal&&links.length===0||listState==='empty',
-      noResults:isNormal&&links.length>0&&rows.length===0,
+      isLoading:tabPriv&&listState==='loading',skel:[1,2,3,4,5],
+      isError:tabPriv&&listState==='error',retry:()=>{this.setState({override:'loading'});setTimeout(()=>this.setState({override:'normal'}),1200);},
+      isEmpty:tabPriv&&(isNormal&&links.length===0||listState==='empty'),
+      noResults:tabPriv&&isNormal&&links.length>0&&rows.length===0,
       resetFilters:()=>this.setState({q:'',tag:'semua',status:'semua'}),
-      hasRows:isNormal&&rows.length>0,rows,rowsCaption:nf(rows.length)+' OF '+nf(links.length)+' LINKS',
+      hasRows:tabPriv&&isNormal&&rows.length>0,rows:privVisible,rowsCaption:nf(rows.length)+' OF '+nf(links.length)+' LINKS',
       menuOpenAny:!!s.menuFor,closeMenu:()=>this.setState({menuFor:null}),
       toast:s.toast,hasToast:!!s.toast,stop:e=>e.stopPropagation(),
     };
+    const pubState=p.publicState||'normal';
+    const pubAll=pubState==='empty'?[]:s.pub;
+    const blockedHosts=s.blocked.map(b=>b.host);
+    const pubF=pubAll.filter(l=>(!q||l.slug.includes(q)||l.url.toLowerCase().includes(q))&&(s.status==='semua'||l.status===s.status)).sort(s.sort==='klik'?(a,b)=>b.total-a.total:(a,b)=>b.created-a.created);
+    Object.assign(out,{
+      showPub:!tabPriv&&(listState==='normal'||listState==='empty'),pubEmpty:pubAll.length===0,pubNoResults:pubAll.length>0&&pubF.length===0,pubHasRows:pubF.length>0,
+      pubCaption:nf(pubF.length)+' OF '+nf(pubAll.length)+' PUBLIC LINKS',pubTagNote:s.tag!=='semua'&&pubF.length>0,
+      pubRows:pubF.slice(0,s.pubShown).map((l,i)=>{const lim=l.status==='aktif'&&l.today>=PUB_LIMIT;const st=lim?{label:'DAILY LIMIT',bg:'#B4501A'}:STATUS[l.status];const host=hostOf(l.url);const isB=blockedHosts.some(b=>host===b||host.endsWith('.'+b));return{
+        slug:l.slug,host,url:l.url,full:l.url.replace(/^https?:\/\//,''),statusLabel:st.label,statusBg:st.bg,created:fD(l.created),createdTime:fT(l.created)+' WIB',
+        total:nf(l.total),today:nf(l.today),todayW:Math.min(100,l.today/PUB_LIMIT*100)+'%',todayBar:lim?'var(--exp)':'var(--ink)',
+        sep:i===pubF.length-1?'none':'1px solid var(--hair)',isCopied:s.copied===l.id,notCopied:s.copied!==l.id,copyAria:'Copy daffa.me/'+l.slug,
+        onCopy:()=>this.copy(l),onQR:()=>this.setState({qrFor:l.id,menuFor:null}),
+        menuOpen:s.menuFor===l.id,menuShadow:s.menuFor===l.id?'var(--inset)':'var(--raise-sm)',onMenu:()=>this.setState({menuFor:s.menuFor===l.id?null:l.id}),
+        toggleLabel:l.status==='aktif'?'Disable link':'Enable link',
+        onToggle:()=>{const ns=l.status==='aktif'?'nonaktif':'aktif';this.setState(x=>({menuFor:null,pub:x.pub.map(y=>y.id===l.id?{...y,status:ns}:y)}));this.toastMsg('daffa.me/'+l.slug+(ns==='aktif'?' enabled':' disabled. The slug stays reserved'));},
+        blockLabel:isB?'Domain already blocked':'Block domain',blockColor:isB?'var(--ink2)':'var(--danger)',blockDisabled:isB?'true':'false',
+        onBlock:()=>{if(isB){this.setState({menuFor:null,showBlocked:true});return;}this.setState({blockFor:l.id,blockAlso:true,menuFor:null});},
+        onDelete:()=>this.setState({pubDel:l.id,menuFor:null})};}),
+      blockedCount:nf(s.blocked.length),openBlocked:()=>this.setState({showBlocked:true}),closeBlocked:()=>this.setState({showBlocked:false,blockedQ:''}),hasBlockedList:s.showBlocked,
+      ...(()=>{const bq=(s.blockedQ||'').trim().toLowerCase();const bf=s.blocked.filter(b=>!bq||b.host.includes(bq));return{
+      blockedQ:s.blockedQ||'',onBlockedQ:e=>this.setState({blockedQ:e.target.value}),
+      blockedEmpty:s.blocked.length===0,blockedAny:s.blocked.length>0,blockedHas:bf.length>0,blockedNoMatch:s.blocked.length>0&&bf.length===0,
+      blockedCaption:bq?nf(bf.length)+' of '+nf(s.blocked.length)+' domains':nf(s.blocked.length)+' domains',
+      blockedRows:bf.sort((a,b)=>b.added-a.added).map((b,i,arr)=>({host:b.host,added:'Added '+fDT(b.added),aria:'Remove '+b.host+' from blocked domains',sep:i===arr.length-1?'none':'1px solid var(--hair)',onRemove:()=>{this.setState(x=>({blocked:x.blocked.filter(y=>y.host!==b.host)}));this.toastMsg(b.host+' removed from blocked domains');}}))};})(),
+    });
+    const moreVals=(k,total)=>{const shown=Math.min(total,s[k+'Shown']);const busy=s.loadingMore===k;return{[k+'More']:shown<total,[k+'MoreText']:'Showing '+nf(shown)+' of '+nf(total),[k+'LoadMore']:()=>this.loadMore(k),[k+'Loading']:busy,[k+'Busy']:busy?'true':'false',[k+'BtnShadow']:busy?'var(--inset)':'var(--raise-sm)',[k+'LoadLabel']:busy?'Loading links':'Load More',[k+'Ref']:this[k+'Ref']};};
+    Object.assign(out,moreVals('priv',rowsAll.length),moreVals('pub',pubF.length));
+    const tabO=(key,label,count)=>{const on=(s.tab||'private')===key;return{label,count:nf(count),on:on?'true':'false',shadow:on?'var(--inset)':'none',fw:on?800:500,color:on?'var(--ink)':'var(--ink2)',onClick:()=>this.setState({tab:key,menuFor:null})};};
+    out.tabs=[tabO('private','Private Links',rowsAll.length),tabO('public','Public Links',pubF.length)];
+    out.tabDesc=tabPriv?'Created by the owner. Custom slugs, tags, expiration, and full analytics.':'Created by visitors on link.daffa.me. Permanent, with click counts only.';
+    const bl=s.pub.find(x=>x.id===s.blockFor);out.hasBlock=!!bl;
+    if(bl){const host=hostOf(bl.url);const act=s.pub.filter(x=>hostOf(x.url)===host&&x.status==='aktif');out.blk={host,also:s.blockAlso?'true':'false',checked:s.blockAlso,checkShadow:s.blockAlso?'var(--inset)':'var(--raise-sm)',hasActive:act.length>0,noActive:act.length===0,
+      alsoLabel:act.length===1?'Also disable the existing public link to '+host:'Also disable all '+act.length+' existing public links to '+host};}
+    out.toggleBlockAlso=()=>this.setState(x=>({blockAlso:!x.blockAlso}));out.closeBlock=()=>this.setState({blockFor:null});
+    out.doBlock=()=>{if(!bl)return;const host=hostOf(bl.url);const dis=s.blockAlso;this.setState(x=>({blockFor:null,blocked:[{host,added:new Date(NOW)},...x.blocked.filter(y=>y.host!==host)],pub:dis?x.pub.map(y=>hostOf(y.url)===host?{...y,status:'nonaktif'}:y):x.pub}));this.toastMsg(host+' blocked for public links'+(dis?'. Existing links disabled':''));};
+    const pd=s.pub.find(x=>x.id===s.pubDel);out.hasPubDel=!!pd;out.closePubDel=()=>this.setState({pubDel:null});
+    if(pd)out.pdel={slug:pd.slug,total:nf(pd.total),canDisable:pd.status==='aktif'};
+    out.pubDisableInstead=()=>{if(!pd)return;this.setState(x=>({pubDel:null,pub:x.pub.map(y=>y.id===pd.id?{...y,status:'nonaktif'}:y)}));this.toastMsg('daffa.me/'+pd.slug+' disabled. The slug stays reserved');};
+    out.doPubDelete=()=>{if(!pd)return;this.setState(x=>({pubDel:null,pub:x.pub.filter(y=>y.id!==pd.id)}));this.toastMsg('daffa.me/'+pd.slug+' deleted. The slug is available again');};
     // detail
     const l=s.links.find(x=>x.id===s.detailId)||s.links[0];
     if(l){
@@ -883,8 +1117,8 @@ class Component extends DCLogic {
         saveLabel:f.mode==='edit'?'Save Changes':'Save Link',onSave:()=>this.save()};
     }
     // qr
-    const ql=s.links.find(x=>x.id===s.qrFor);out.hasQR=!!ql;out.closeQR=()=>this.setState({qrFor:null});
-    if(ql)out.qr={title:ql.title,slug:ql.slug,aria:'QR code for daffa.me/'+ql.slug,code:this.qrOf('https://daffa.me/'+ql.slug),png:()=>this.download(ql.slug,'png'),svg:()=>this.download(ql.slug,'svg')};
+    const ql=s.links.find(x=>x.id===s.qrFor)||s.pub.find(x=>x.id===s.qrFor);out.hasQR=!!ql;out.closeQR=()=>this.setState({qrFor:null});
+    if(ql)out.qr={title:ql.title||hostOf(ql.url),slug:ql.slug,aria:'QR code for daffa.me/'+ql.slug,code:this.qrOf('https://daffa.me/'+ql.slug),png:()=>this.download(ql.slug,'png'),svg:()=>this.download(ql.slug,'svg')};
     // delete
     const dl=s.links.find(x=>x.id===s.confirmDel);out.hasDel=!!dl;out.closeDel=()=>this.setState({confirmDel:null});
     if(dl){const t=this.totals(dl);out.del={slug:dl.slug,human:nf(t.h),bot:nf(t.b)};}

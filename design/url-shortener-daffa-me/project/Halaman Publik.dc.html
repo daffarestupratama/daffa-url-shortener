@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>daffa.me · Free short links with QR code</title>
+<meta name="description" content="Turn any long URL into a short daffa.me link with a QR code. Free, without an account.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;700&amp;family=Atkinson+Hyperlegible+Next:wght@400;500;700;800&amp;display=swap">
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+:root{--badge-in:inset 2px 2px 4px rgba(0,0,0,0.45),inset -1px -1px 3px rgba(255,255,255,0.18),0 1px 0 rgba(255,255,255,0.8);--tile-in:10px 12px 22px rgba(20,23,28,0.45),3px 4px 6px rgba(20,23,28,0.35),-8px -8px 16px #FFFFFF,inset 1px 1px 0 rgba(255,255,255,0.22),inset -2px -2px 1px rgba(0,0,0,0.6);--lift:inset 0 1px 0 rgba(255,255,255,0.7),0 1px 2px rgba(20,23,28,0.18),0 12px 28px -6px rgba(20,23,28,0.35);--bg:#E4E8EE;--bg-hover:#ECEFF3;--line:#7A8494;--hair:#C3CAD4;--ink:#14171C;--ink2:#4A5260;--sign:#F5C400;--link:#1F5FBF;--ok:#1E7F4F;--off:#5B6472;--exp:#B4501A;--danger:#C62828;--track:#CFD5DE;--raise-lg:6px 6px 12px #B8C0CC,-6px -6px 12px #FFFFFF;--raise-sm:3px 3px 6px #B8C0CC,-3px -3px 6px #FFFFFF;--inset:inset 3px 3px 6px #B8C0CC,inset -3px -3px 6px #FFFFFF;--font:'Atkinson Hyperlegible Next',system-ui,sans-serif;--mono:'Atkinson Hyperlegible Mono','IBM Plex Mono',ui-monospace,monospace}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:var(--link)}a:hover{color:#174A96}
+:focus-visible{outline:3px solid #1F5FBF;outline-offset:3px}
+button,input{font-family:inherit}
+@keyframes chRock{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@keyframes chSlide{0%,100%{transform:translate(-0.5cqw,0.4cqw) rotate(2deg)}50%{transform:translate(0.5cqw,-0.4cqw) rotate(-2deg)}}
+@keyframes chFloat{0%,100%{transform:translateY(0.8cqw)}50%{transform:translateY(-0.8cqw)}}
+@keyframes chSheen{0%,100%{background-position:0% 30%}50%{background-position:100% 70%}}
+@keyframes pSpin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div style="min-height:100vh;background:{{ outerBg }}">
+<div style="max-width:{{ frameMax }};margin:0 auto;min-height:100vh;background:var(--bg);display:flex;flex-direction:column;container-type:inline-size">
+<header style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding:16px clamp(16px,3cqw,40px);border-bottom:1px solid var(--hair)">
+  <a href="/" aria-label="daffa.me link shortener home" style="display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink)">
+    <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;background:linear-gradient(145deg,#2A3039,#0C0E12);box-shadow:var(--tile-in);color:var(--sign);font:700 18px/1 var(--mono)"><span style="color:#8E97A6">/</span><span>D</span></span>
+    <span style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">
+      <span style="font:700 18px/1 var(--mono);letter-spacing:.01em">daffa.me</span>
+      <span style="font:700 11px/1 var(--font);letter-spacing:.16em;color:var(--ink2);white-space:nowrap">LINK SHORTENER</span>
+    </span>
+  </a>
+  <div style="flex:1 1 auto;display:flex;align-items:center;justify-content:flex-end;gap:14px">
+    <span style="display:inline-flex;align-items:center;gap:8px;font:500 14px/1.3 var(--font);color:var(--ink2);white-space:nowrap"><span style="width:8px;height:8px;border-radius:50%;background:var(--off)"></span>Public Visitor</span>
+    <span aria-hidden="true" style="flex:1 1 0;max-width:clamp(0px,(520px - 100cqw) * 1000,9999px)"></span>
+    <a href="/dashboard" style="display:inline-flex;align-items:center;height:40px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 14px var(--font);box-shadow:var(--raise-sm);text-decoration:none;white-space:nowrap" style-hover="background:var(--bg-hover);color:var(--ink)" style-active="box-shadow:var(--inset)">Sign In</a>
+  </div>
+</header>
+
+<main style="flex:1;width:100%;max-width:1120px;margin:0 auto;padding:clamp(28px,5cqw,56px) clamp(16px,3cqw,40px) 64px;display:flex;flex-direction:column;gap:clamp(28px,4cqw,44px)">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:24px 40px;align-items:center">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <span style="display:flex;align-items:center;gap:8px;font:700 12px/1 var(--font);letter-spacing:.18em;color:var(--ink2)"><span style="width:10px;height:10px;background:var(--sign);border:1px solid var(--ink)"></span>PUBLIC URL SHORTENER</span>
+      <h1 style="margin:0;font:800 clamp(32px,5cqw,56px)/1.04 var(--font);letter-spacing:-.02em;text-wrap:balance">Short links for everyone</h1>
+      <p style="margin:0;max-width:520px;font:400 clamp(16px,1.6cqw,19px)/1.55 var(--font);color:var(--ink2);text-wrap:pretty">Any long URL becomes a short daffa.me link with a QR code, free and without an account.</p>
+    </div>
+    <div style="display:flex;justify-content:center">{{ hero }}</div>
+  </div>
+
+  <form onSubmit="{{ submit }}" noValidate="" aria-busy="{{ busyAttr }}" aria-labelledby="form-kicker" style="background:var(--bg);border-radius:20px;box-shadow:var(--raise-lg);padding:clamp(14px,3cqw,32px);display:flex;flex-direction:column;gap:22px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap">
+      <span id="form-kicker" style="font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">NEW PUBLIC LINK</span>
+      <span style="flex:1 1 260px;text-align:right;font:400 13px/1.4 var(--font);color:var(--ink2)">Public links are permanent and cannot be edited.</span>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label for="p-url" style="font:700 15px/1.2 var(--font)">Destination URL <span style="color:var(--danger)">*</span></label>
+      <input id="p-url" type="url" inputMode="url" autoComplete="url" value="{{ url }}" onChange="{{ onUrl }}" disabled="{{ busy }}" placeholder="https://example.com/a-very-long-address" aria-required="true" aria-invalid="{{ urlInvalid }}" aria-describedby="p-url-msg" style="height:52px;padding:0 14px;border-radius:12px;border:{{ urlBorder }};background:var(--bg);box-shadow:var(--inset);font:400 16px var(--mono);color:var(--ink);width:100%;min-width:0;opacity:{{ fieldOp }}">
+      <sc-if value="{{ urlError }}"><span id="p-url-msg" role="alert" style="display:flex;gap:8px;font:700 14px/1.45 var(--font);color:var(--danger);text-wrap:pretty"><span style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-top:1px;border-radius:50%;background:var(--danger);color:#fff;font-size:12px">!</span>{{ urlError }}</span></sc-if>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label for="p-slug" style="font:700 15px/1.2 var(--font)">Slug</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1 1 220px;min-width:0;display:flex;align-items:center;height:52px;border-radius:12px;border:1px dashed var(--line);background:#DADFE6;box-shadow:inset 2px 2px 4px #B8C0CC,inset -2px -2px 4px #F2F4F7;overflow:hidden;cursor:not-allowed">
+          <span style="flex:none;height:100%;display:flex;align-items:center;padding:0 10px 0 14px;font:500 16px var(--mono);color:var(--ink2);border-right:1px solid var(--hair)">daffa.me/</span>
+          <input id="p-slug" value="{{ slug }}" disabled="" readOnly="" aria-describedby="p-slug-help" style="flex:1;min-width:0;height:100%;padding:0 12px;border:0;background:transparent;font:700 16px var(--mono);letter-spacing:.06em;color:#4A5260;-webkit-text-fill-color:#4A5260;opacity:1;cursor:not-allowed">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#4A5260" stroke-width="1.8" style="flex:none;margin-right:14px"><rect x="3" y="7" width="10" height="7" rx="1.5"></rect><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"></path></svg>
+        </div>
+        <button type="button" onClick="{{ regen }}" disabled="{{ busy }}" style="height:52px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap;opacity:{{ fieldOp }}" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)">Generate</button>
+      </div>
+      <span id="p-slug-help" style="font:400 13px/1.5 var(--font);color:var(--ink2);text-wrap:pretty">Public slugs are generated automatically as 6 random characters. Generate replaces the slug with a new one. Custom slugs are available for private use only.</span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px;padding-top:20px;border-top:1px solid var(--hair)">
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:100%">
+        <button type="button" onClick="{{ reverify }}" aria-label="Cloudflare Turnstile verification area" style="width:300px;max-width:100%;height:65px;border-radius:6px;border:{{ tsBorder }};background:#EEF1F4;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;padding:0 14px;cursor:default">
+          <span style="font:700 11px/1 var(--mono);letter-spacing:.12em;color:var(--ink2);white-space:nowrap">CLOUDFLARE TURNSTILE</span>
+          <span style="font:500 11px/1 var(--mono);color:var(--ink2);white-space:nowrap">300 × 65</span>
+        </button>
+        <sc-if value="{{ tsError }}"><span role="alert" style="display:flex;gap:8px;max-width:300px;font:700 14px/1.45 var(--font);color:var(--danger);text-wrap:pretty"><span style="flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-top:1px;border-radius:50%;background:var(--danger);color:#fff;font-size:12px">!</span>Verification failed or expired. Complete the check again, then press Create Link.</span></sc-if>
+      </div>
+      <button type="submit" disabled="{{ busy }}" style="display:inline-flex;align-items:center;justify-content:center;gap:10px;height:56px;padding:0 28px;border-radius:12px;border:1px solid var(--ink);background:var(--sign);color:var(--ink);font:800 17px var(--font);box-shadow:{{ submitShadow }};cursor:{{ submitCursor }};white-space:nowrap;flex:0 1 auto" style-hover="background:#FFD21F" style-active="box-shadow:inset 3px 3px 6px #B89400,inset -3px -3px 6px #FFE36B">
+        <sc-if value="{{ busy }}">{{ spinner }}</sc-if>{{ submitLabel }}
+      </button>
+    </div>
+
+    <sc-if value="{{ netError }}">
+      <div role="alert" style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:16px;border-radius:12px;border:1px solid var(--danger);background:#F3E2E2">
+        <span style="background:var(--danger);color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">ERROR</span>
+        <span style="flex:1 1 260px;font:500 15px/1.5 var(--font);color:var(--ink);text-wrap:pretty">The link could not be created because the service did not respond. Check the connection, then try again.</span>
+        <button type="button" onClick="{{ retry }}" style="height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-active="box-shadow:var(--inset)">Try Again</button>
+      </div>
+    </sc-if>
+  </form>
+
+  <sc-if value="{{ hasResult }}">
+    <section aria-live="polite" aria-labelledby="res-title" style="background:var(--bg);border-radius:20px;box-shadow:var(--raise-lg);padding:clamp(16px,3cqw,32px);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:28px 40px;align-items:center">
+      <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="background:var(--ok);color:#fff;font:800 11px/1 var(--font);letter-spacing:.14em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">ACTIVE</span>
+          <h2 id="res-title" style="margin:0;font:700 12px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">SHORT LINK READY</h2>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:baseline;background:linear-gradient(145deg,#2A3039,#0C0E12);color:var(--sign);box-shadow:var(--tile-in);font:700 clamp(24px,3cqw,34px)/1.1 var(--mono);padding:14px 18px;border-radius:12px;letter-spacing:.02em;max-width:100%;white-space:nowrap"><span style="color:#8E97A6;font-size:.62em">daffa.me/</span>{{ res.slug }}</span>
+          <button type="button" onClick="{{ copy }}" aria-label="{{ res.copyAria }}" style="display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)">
+            <sc-if value="{{ copied }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#1E7F4F" stroke-width="2.4"><path d="M3 8.5l3 3 7-7"></path></svg></sc-if>
+            <sc-if value="{{ notCopied }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"></path></svg></sc-if>
+            {{ copyLabel }}
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+          <span style="font:700 11px/1 var(--font);letter-spacing:.16em;color:var(--ink2)">DESTINATION</span>
+          <span style="font:800 19px/1.3 var(--font);overflow-wrap:anywhere">{{ res.host }}</span>
+          <a href="{{ res.url }}" target="_blank" rel="noopener nofollow" style="font:400 14px/1.5 var(--mono);color:var(--link);overflow-wrap:anywhere">{{ res.url }}</a>
+        </div>
+        <p style="margin:0;padding-top:16px;border-top:1px solid var(--hair);font:400 14px/1.55 var(--font);color:var(--ink2);text-wrap:pretty">Visitors see a short notice with the destination before continuing. Each public link opens up to 500 times per day.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+        <div style="background:#FFFFFF;border-radius:12px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px">
+          <sc-if value="{{ qr.ready }}"><svg viewBox="{{ qr.vb }}" width="200" height="200" shape-rendering="crispEdges" role="img" aria-label="{{ res.qrAria }}"><path d="{{ qr.d }}" fill="#14171C"></path></svg></sc-if>
+          <sc-if value="{{ qr.loading }}"><div style="width:200px;height:200px;display:flex;align-items:center;justify-content:center;font:500 13px var(--font);color:var(--ink2)">Loading QR</div></sc-if>
+          <span style="font:500 12px/1.3 var(--mono);color:var(--ink)">daffa.me/{{ res.slug }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:280px">
+          <button type="button" onClick="{{ png }}" style="height:48px;border-radius:12px;border:1px solid var(--ink);background:var(--sign);color:var(--ink);font:800 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-hover="background:#FFD21F" style-active="box-shadow:inset 3px 3px 6px #B89400,inset -3px -3px 6px #FFE36B">Download PNG</button>
+          <button type="button" onClick="{{ svg }}" style="height:48px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer;white-space:nowrap" style-active="box-shadow:var(--inset)">Download SVG</button>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+</main>
+
+<footer style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;padding:20px clamp(16px,3cqw,40px);border-top:1px solid var(--hair);font:400 14px/1.5 var(--font);color:var(--ink2)">
+  <span>Built by <a href="https://daffarestupratama.com" style="font-weight:700">Daffa Ilham Restupratama</a></span>
+  <a href="mailto:contact@daffarestupratama.com?subject=Report%20abuse" style="font-size:13px;color:var(--ink2)" style-hover="color:var(--ink)">Report abuse</a>
+</footer>
+</div>
+</div>
+
+<sc-if value="{{ hasRate }}">
+  <div style="position:fixed;inset:0;z-index:60;background:rgba(20,23,28,0.5);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div role="alertdialog" aria-modal="true" aria-labelledby="rate-title" aria-describedby="rate-desc" style="width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--bg);border-radius:16px;box-shadow:var(--lift);padding:26px;display:flex;flex-direction:column;gap:18px">
+      <span style="align-self:flex-start;background:{{ rate.badgeBg }};color:#fff;font:800 11px/1 var(--font);letter-spacing:.16em;padding:6px 9px;border-radius:4px;box-shadow:var(--badge-in)">{{ rate.badge }}</span>
+      <h2 id="rate-title" style="margin:0;font:800 22px/1.25 var(--font);text-wrap:balance">{{ rate.title }}</h2>
+      <p id="rate-desc" style="margin:0;font:400 15px/1.55 var(--font);color:var(--ink);text-wrap:pretty">{{ rate.desc }}</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px">
+        <div style="background:linear-gradient(145deg,#2A3039,#0C0E12);box-shadow:var(--tile-in);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+          <span style="font:700 11px/1 var(--font);letter-spacing:.16em;color:#B7BEC9">AVAILABLE AT</span>
+          <span style="display:flex;align-items:baseline;gap:8px"><span style="font:700 30px/1 var(--mono);color:var(--sign);font-variant-numeric:tabular-nums">{{ rate.at }}</span><span style="font:700 13px/1 var(--mono);color:#B7BEC9">WIB</span></span>
+        </div>
+        <div style="background:linear-gradient(145deg,#2A3039,#0C0E12);box-shadow:var(--tile-in);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+          <span style="font:700 11px/1 var(--font);letter-spacing:.16em;color:#B7BEC9">TIME REMAINING</span>
+          <span role="timer" aria-live="off" style="font:700 30px/1 var(--mono);color:var(--sign);font-variant-numeric:tabular-nums">{{ rate.left }}</span>
+        </div>
+      </div>
+      <button onClick="{{ closeRate }}" style="height:48px;padding:0 20px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:700 15px var(--font);box-shadow:var(--raise-sm);cursor:pointer" style-hover="background:var(--bg-hover)" style-active="box-shadow:var(--inset)">Understood</button>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}">
+  <div role="status" style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:80;background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font:500 15px/1.3 var(--font);display:flex;gap:10px;align-items:center;max-width:calc(100vw - 32px)"><span style="width:8px;height:8px;border-radius:50%;background:var(--sign)"></span>{{ toast }}</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;demoState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;live&quot;,&quot;empty&quot;,&quot;filled&quot;,&quot;submitting&quot;,&quot;success&quot;,&quot;invalid&quot;,&quot;loop&quot;,&quot;shortener&quot;,&quot;blocked&quot;,&quot;turnstile&quot;,&quot;rateVisitor&quot;,&quot;rateGlobal&quot;,&quot;network&quot;],&quot;default&quot;:&quot;live&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;States&quot;},&quot;viewport&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;fluid&quot;,&quot;1440&quot;,&quot;360&quot;],&quot;default&quot;:&quot;fluid&quot;,&quot;tsType&quot;:&quot;'fluid'|'1440'|'360'&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;motion&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;static&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;'auto'|'static'&quot;,&quot;section&quot;:&quot;Preview&quot;}}">
+const pad=n=>String(n).padStart(2,'0');
+const SHORT=['bit.ly','bitly.com','tinyurl.com','s.id','t.co','goo.gl','ow.ly','is.gd','cutt.ly','rebrand.ly','shorturl.at','rb.gy','tiny.cc','lnkd.in','shorturl.asia'];
+const BLOCKED=['grabgift-promo.com','login-verif-bca.site','freebet88.net'];
+const CH='abcdefghijkmnpqrstuvwxyz23456789';
+const rnd=()=>{let v='';for(let i=0;i<6;i++)v+=CH[Math.floor(Math.random()*CH.length)];return v;};
+const DEMO='https://docs.google.com/forms/d/e/1FAIpQLSd3kR9vQx/viewform?usp=sf_link';
+const hostOf=u=>{try{return new URL(u).hostname.replace(/^www\./,'');}catch(e){return u;}};
+const onDomain=(h,d)=>h===d||h.endsWith('.'+d);
+const U=p=>(p/5.6).toFixed(3)+'cqw';
+const SILVER='linear-gradient(155deg,#FFFFFF 0%,#DCE1E7 24%,#A1AAB7 48%,#F4F6F8 66%,#ABB3BF 86%,#E6E9ED 100%)';
+const BAR='linear-gradient(180deg,#FFFFFF 0%,#D5DAE1 30%,#98A1AE 58%,#C9CFD7 78%,#EEF1F4 100%)';
+
+class Component extends DCLogic {
+  state={url:'',slug:'x7kq2m',busy:false,err:null,ts:null,net:false,rate:null,result:null,copied:false,made:0,now:Date.now(),reduced:false,qrTick:0,toast:null};
+  componentDidMount(){
+    try{const m=window.matchMedia('(prefers-reduced-motion: reduce)');this.m=m;this.mq=e=>this.setState({reduced:e.matches});m.addEventListener('change',this.mq);this.setState({reduced:m.matches});}catch(e){}
+    this.qrPoll=setInterval(()=>{if(window.qrcode){clearInterval(this.qrPoll);this.setState({qrTick:1});}},150);
+    this.tick=setInterval(()=>{if(this.state.rate)this.setState({now:Date.now()});},1000);
+    this.onKey=e=>{if(e.key==='Escape'&&this.state.rate)this.setState({rate:null});};
+    window.addEventListener('keydown',this.onKey);
+    this.applyDemo();
+  }
+  componentDidUpdate(pp){if(pp.demoState!==this.props.demoState)this.applyDemo();}
+  componentWillUnmount(){clearInterval(this.qrPoll);clearInterval(this.tick);clearTimeout(this.st);clearTimeout(this.ct);clearTimeout(this.tt);window.removeEventListener('keydown',this.onKey);if(this.m)this.m.removeEventListener('change',this.mq);}
+  applyDemo(){
+    clearTimeout(this.st);
+    const d=this.props.demoState||'live';
+    const base={url:'',busy:false,err:null,ts:null,net:false,rate:null,result:null,copied:false,now:Date.now()};
+    const M={filled:{url:DEMO},submitting:{url:DEMO,busy:true},success:{result:{slug:'x7kq2m',url:DEMO},slug:'bn4tzw'},
+      invalid:{url:'docs google com/forms/rsvp',err:'invalid'},loop:{url:'https://daffa.me/cv',err:'loop'},
+      shortener:{url:'https://bit.ly/3xYz9Qa',err:'shortener'},blocked:{url:'https://login-verif-bca.site/akun/verifikasi',err:'blocked'},
+      turnstile:{url:DEMO,ts:'failed'},rateVisitor:{url:DEMO,rate:'visitor'},rateGlobal:{url:DEMO,rate:'global'},network:{url:DEMO,net:true}};
+    this.setState({...base,...(M[d]||{})});
+  }
+  check(v){
+    v=v.trim();if(!v)return 'empty';
+    let u;try{u=new URL(v);}catch(e){return 'invalid';}
+    if(!/^https?:$/.test(u.protocol)||!u.hostname.includes('.'))return 'invalid';
+    const h=u.hostname.toLowerCase();
+    if(onDomain(h,'daffa.me'))return 'loop';
+    if(SHORT.some(d=>onDomain(h,d)))return 'shortener';
+    if(BLOCKED.some(d=>onDomain(h,d)))return 'blocked';
+    return null;
+  }
+  errMsg(k,url){
+    const h=hostOf(url.trim());
+    return {empty:'Destination URL is required.',
+      invalid:'Invalid URL format. Use a full address that starts with https://',
+      loop:'Destination URL cannot point to daffa.me because the short link would redirect back to itself.',
+      shortener:'Links from other URL shorteners such as '+h+' are not accepted. Use the final destination address instead.',
+      blocked:'The domain '+h+' is blocked for public links and cannot be shortened.'}[k];
+  }
+  submit=e=>{
+    if(e&&e.preventDefault)e.preventDefault();
+    const s=this.state;if(s.busy)return;
+    const er=this.check(s.url);if(er){this.setState({err:er});return;}
+    if(s.ts){this.setState({ts:'failed'});return;}
+    if(s.made>=5){this.setState({rate:'visitor',now:Date.now()});return;}
+    this.setState({busy:true,err:null,net:false});
+    this.st=setTimeout(()=>this.setState(x=>({busy:false,result:{slug:x.slug,url:x.url.trim()},url:'',slug:rnd(),made:x.made+1,copied:false})),1100);
+  };
+  toastMsg(m){clearTimeout(this.tt);this.setState({toast:m});this.tt=setTimeout(()=>this.setState({toast:null}),2400);}
+  qrOf(text){
+    if(!window.qrcode)return {ready:false,loading:true};
+    const q=window.qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount();let d='';
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+=`M${c} ${r}h1v1h-1z`;
+    return {ready:true,loading:false,n,d,vb:`0 0 ${n} ${n}`};
+  }
+  download(slug,kind){
+    const qr=this.qrOf('https://daffa.me/'+slug);if(!qr.ready)return;
+    const name='daffa-me-'+slug;const a=document.createElement('a');
+    if(kind==='svg'){
+      const s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 ${qr.n+8} ${qr.n+8}" width="1024" height="1024" shape-rendering="crispEdges"><rect x="-4" y="-4" width="${qr.n+8}" height="${qr.n+8}" fill="#FFFFFF"/><path d="${qr.d}" fill="#14171C"/></svg>`;
+      a.href=URL.createObjectURL(new Blob([s],{type:'image/svg+xml'}));a.download=name+'.svg';a.click();
+    }else{
+      const sc=16,sz=(qr.n+8)*sc;const cv=document.createElement('canvas');cv.width=cv.height=sz;const x=cv.getContext('2d');
+      x.fillStyle='#fff';x.fillRect(0,0,sz,sz);x.fillStyle='#14171C';
+      const q=window.qrcode(0,'M');q.addData('https://daffa.me/'+slug);q.make();
+      for(let r=0;r<qr.n;r++)for(let c=0;c<qr.n;c++)if(q.isDark(r,c))x.fillRect((c+4)*sc,(r+4)*sc,sc,sc);
+      a.href=cv.toDataURL('image/png');a.download=name+'.png';a.click();
+    }
+    this.toastMsg('Downloaded '+name+'.'+kind);
+  }
+  hero(anim){
+    const h=React.createElement;
+    const ringBox=(cx,i,cap)=>({position:'absolute',left:U(cx-75),top:U(32),width:U(150),height:U(86),borderRadius:999,border:U(17)+' solid transparent',
+      background:'linear-gradient(#E4E8EE,#E4E8EE) padding-box,'+SILVER+' border-box',backgroundSize:'100% 100%,240% 240%',
+      boxShadow:cap?'none':'6px 7px 12px #AAB2BE,-6px -6px 12px #FFFFFF,inset 4px 4px 7px #B8C0CC,inset -4px -4px 7px #FFFFFF',
+      clipPath:cap?'inset(26% calc(100% - '+U(19)+') 26% 0)':'none',zIndex:cap?(i*2+2):(i*2),
+      animation:anim?`chRock 7s ease-in-out ${-i*3.5}s infinite,chSheen 10s ease-in-out ${-i*2}s infinite`:'none',transform:anim?undefined:`rotate(${i%2?2:-2}deg)`});
+    const bar=(cx,i)=>h('div',{key:'b'+i,style:{position:'absolute',left:U(cx-75),top:U(63),width:U(150),height:U(24),borderRadius:999,background:BAR,
+      boxShadow:'4px 5px 8px rgba(120,130,146,0.55),-3px -3px 6px rgba(255,255,255,0.9),inset 0 1px 0 rgba(255,255,255,0.9)',zIndex:i*2+1,
+      animation:anim?`chSlide 7s ease-in-out ${-i*3.5}s infinite`:'none'}},
+      h('div',{style:{position:'absolute',left:'12%',right:'12%',top:'44%',height:'14%',borderRadius:999,background:'rgba(60,68,82,0.45)',boxShadow:'0 1px 0 rgba(255,255,255,0.7)'}}));
+    const xs=[110,280,450];
+    const kids=[];
+    xs.forEach((x,i)=>{kids.push(h('div',{key:'r'+i,style:ringBox(x,i,false)}));if(i>0)kids.push(h('div',{key:'c'+i,style:ringBox(x,i,true)}));if(i<2)kids.push(bar(x+85,i));});
+    return h('div',{role:'img','aria-label':'Three silver chain links joined together',style:{position:'relative',width:'100%',maxWidth:560,aspectRatio:'560 / 150',containerType:'inline-size'}},
+      h('div',{style:{position:'absolute',inset:0,animation:anim?'chFloat 9s ease-in-out infinite':'none'}},kids));
+  }
+  renderVals(){
+    const s=this.state,p=this.props,h=React.createElement;
+    const anim=p.motion!=='static'&&!s.reduced;
+    const vp=p.viewport||'fluid';
+    const ue=s.err?this.errMsg(s.err,s.url):null;
+    const r=s.result;
+    const wib=new Date(s.now+7*3600e3);
+    const left=3600-(wib.getUTCMinutes()*60+wib.getUTCSeconds());
+    const RATE={visitor:{badge:'LIMIT REACHED',badgeBg:'#B4501A',title:'Hourly link limit reached',desc:'Each visitor can create up to 5 public links per hour. Link creation becomes available again at the start of the next hour.'},
+      global:{badge:'CAPACITY FULL',badgeBg:'#C62828',title:'Public capacity reached for this hour',desc:'The shared capacity for public links in this hour has been used by all visitors. Link creation becomes available again for everyone at the start of the next hour.'}};
+    const rate=s.rate?{...RATE[s.rate],at:pad((wib.getUTCHours()+1)%24)+':00',left:pad(Math.floor(left/60))+':'+pad(left%60)}:null;
+    return {
+      hero:this.hero(anim),
+      frameMax:vp==='360'?'360px':vp==='1440'?'1440px':'none',outerBg:vp==='fluid'?'#E4E8EE':'#C9D0D9',
+      url:s.url,onUrl:e=>this.setState({url:e.target.value,err:null,net:false}),
+      urlError:ue,urlInvalid:ue?'true':'false',urlBorder:ue?'2px solid var(--danger)':'1px solid var(--line)',
+      busy:s.busy,busyAttr:s.busy?'true':'false',fieldOp:s.busy?.6:1,
+      slug:s.slug,regen:()=>this.setState({slug:rnd()}),
+      tsError:!!s.ts,tsBorder:s.ts?'2px dashed var(--danger)':'1px dashed var(--line)',reverify:()=>{if(this.state.ts)this.setState({ts:null});},
+      submit:this.submit,retry:()=>this.submit(),
+      submitLabel:s.busy?'Creating Link':'Create Link',submitShadow:s.busy?'inset 3px 3px 6px #B89400,inset -3px -3px 6px #FFE36B':'var(--raise-sm)',submitCursor:s.busy?'progress':'pointer',
+      spinner:h('span',{'aria-hidden':true,style:{display:'inline-block',width:18,height:18,borderRadius:'50%',border:'2.5px solid rgba(20,23,28,0.25)',borderTopColor:'#14171C',animation:anim?'pSpin .8s linear infinite':'none'}}),
+      netError:s.net,
+      hasResult:!!r,
+      res:r?{slug:r.slug,url:r.url,host:hostOf(r.url),copyAria:'Copy daffa.me/'+r.slug,qrAria:'QR code for daffa.me/'+r.slug}:{},
+      qr:r?this.qrOf('https://daffa.me/'+r.slug):{},
+      copied:s.copied,notCopied:!s.copied,copyLabel:s.copied?'Copied':'Copy',
+      copy:()=>{try{navigator.clipboard&&navigator.clipboard.writeText('https://daffa.me/'+r.slug).catch(()=>{});}catch(e){}clearTimeout(this.ct);this.setState({copied:true});this.ct=setTimeout(()=>this.setState({copied:false}),1600);this.toastMsg('daffa.me/'+r.slug+' copied to clipboard');},
+      png:()=>this.download(r.slug,'png'),svg:()=>this.download(r.slug,'svg'),
+      hasRate:!!rate,rate:rate||{},closeRate:()=>this.setState({rate:null}),
+      toast:s.toast,hasToast:!!s.toast,
+    };
+  }
+}
+</script>
+</body>
+</html>
