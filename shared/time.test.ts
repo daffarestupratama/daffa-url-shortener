@@ -4,7 +4,11 @@ import {
   HOUR_MS,
   bucketStarts,
   hourStart,
+  nextHourStart,
+  nextUtcDayStart,
   rangeWindow,
+  secondsUntil,
+  utcDayStart,
   wibDayStart,
   wibMonthStart,
 } from './time';
@@ -104,5 +108,41 @@ describe('agreement with the SQL bucket expressions', () => {
       expect(sqlHour(ts)).toBe(hourStart(ts));
       expect(sqlDay(ts)).toBe(wibDayStart(ts));
     }
+  });
+});
+
+describe('utcDayStart and nextUtcDayStart', () => {
+  it('returns 00:00 UTC of the same day, which is 07:00 WIB', () => {
+    expect(utcDayStart(NOW)).toBe(Date.UTC(2026, 8, 27));
+    expect(nextUtcDayStart(NOW)).toBe(Date.UTC(2026, 8, 28));
+  });
+
+  it('switches days at midnight UTC, not at midnight WIB', () => {
+    const midnight = Date.UTC(2026, 8, 28);
+    expect(utcDayStart(midnight - 1)).toBe(Date.UTC(2026, 8, 27));
+    expect(utcDayStart(midnight)).toBe(midnight);
+    // 06:59 WIB on 28 Sep still belongs to the UTC day of 27 Sep.
+    expect(utcDayStart(wibMidnight(2026, 8, 28) + 6 * HOUR_MS + 59 * 60_000)).toBe(
+      Date.UTC(2026, 8, 27),
+    );
+  });
+});
+
+describe('nextHourStart', () => {
+  it('returns the start of the following clock hour', () => {
+    expect(nextHourStart(NOW)).toBe(Date.UTC(2026, 8, 27, 8));
+    expect(nextHourStart(Date.UTC(2026, 8, 27, 8))).toBe(Date.UTC(2026, 8, 27, 9));
+  });
+});
+
+describe('secondsUntil', () => {
+  it('rounds up to whole seconds', () => {
+    expect(secondsUntil(NOW + 1500, NOW)).toBe(2);
+    expect(secondsUntil(NOW + DAY_MS, NOW)).toBe(86_400);
+  });
+
+  it('never returns less than one second', () => {
+    expect(secondsUntil(NOW, NOW)).toBe(1);
+    expect(secondsUntil(NOW - 5000, NOW)).toBe(1);
   });
 });

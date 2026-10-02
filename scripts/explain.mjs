@@ -1,18 +1,16 @@
-import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { ROOT, importTs } from './bundle.mjs';
+import { importTs } from './bundle.mjs';
+import { d1Local } from './d1.mjs';
 
 /**
- * Runs EXPLAIN QUERY PLAN on every read query the dashboard API ships, against
- * the local database, and fails if any of them scans the clicks table instead
- * of using idx_clicks_link_ts or idx_clicks_link_bot_ts.
+ * Runs EXPLAIN QUERY PLAN on every query the dashboard API and the redirector
+ * ship, against the local database. Fails if any of them scans the clicks
+ * table instead of using idx_clicks_link_ts or idx_clicks_link_bot_ts, and
+ * fails if a case marked `noScan` scans any table at all. The redirector
+ * cases are marked, since they run on every click.
  *
- * The SQL comes straight from apps/dashboard/src/worker/queries.ts, so this
- * checks what actually runs. Parameters are inlined as literals because
- * `wrangler d1 execute` cannot bind them, and everything goes through one
- * temporary --file to avoid shell quoting on Windows.
+ * The SQL comes straight from apps/dashboard/src/worker/queries.ts and
+ * apps/redirector/src/sql.ts, so this checks what actually runs. Parameters
+ * are inlined as literals because `wrangler d1 execute` cannot bind them.
  */
 
 const CLICK_INDEXES = ['idx_clicks_link_ts', 'idx_clicks_link_bot_ts'];
@@ -32,74 +30,63 @@ function inline(sql, params) {
   return out;
 }
 
-const { EXPLAIN_CASES } = await importTs('apps/dashboard/src/worker/queries.ts');
+const dashboard = await importTs('apps/dashboard/src/worker/queries.ts');
+const redirector = await importTs('apps/redirector/src/sql.ts');
+const EXPLAIN_CASES = [...redirector.EXPLAIN_CASES, ...dashboard.EXPLAIN_CASES];
 
-const dir = await mkdtemp(path.join(tmpdir(), 'daffa-explain-'));
-const file = path.join(dir, 'explain.sql');
+let results;
 try {
   const statements = EXPLAIN_CASES.map((c) => `EXPLAIN QUERY PLAN ${inline(c.sql, c.params)};`);
-  await writeFile(file, statements.join('\n'), 'utf8');
-
-  const run = spawnSync(
-    'npx',
-    [
-      'wrangler', 'd1', 'execute', 'daffa-links', '--local',
-      '--persist-to', '.wrangler-state',
-      '-c', 'apps/redirector/wrangler.jsonc',
-      '--json', '--file', `"${file}"`,
-    ],
-    { cwd: ROOT, encoding: 'utf8', shell: true, maxBuffer: 16 * 1024 * 1024 },
-  );
-  if (run.status !== 0) {
-    console.error(run.stdout, run.stderr);
-    console.error('\nwrangler d1 execute failed. Run `npm run migrate:local` first.');
-    process.exit(run.status ?? 1);
-  }
-
-  const start = run.stdout.indexOf('[');
-  const results = JSON.parse(run.stdout.slice(start));
-  if (results.length !== EXPLAIN_CASES.length) {
-    throw new Error(`Expected ${EXPLAIN_CASES.length} plans, received ${results.length}.`);
-  }
-
-  let failures = 0;
-  console.log('EXPLAIN QUERY PLAN, local database\n');
-
-  EXPLAIN_CASES.forEach((testCase, index) => {
-    const rows = results[index].results ?? [];
-    const details = rows.map((row) => row.detail);
-    const scansClicks = details.some((detail) => /\bSCAN (c|clicks)\b/.test(detail));
-    const usedIndexes = CLICK_INDEXES.filter((name) => details.some((d) => d.includes(name)));
-
-    let verdict;
-    if (!testCase.readsClicks) {
-      verdict = 'INFO  does not read clicks';
-    } else if (scansClicks) {
-      verdict = 'FAIL  full scan on clicks';
-      failures += 1;
-    } else if (usedIndexes.length === 0) {
-      verdict = 'FAIL  reads clicks without a clicks index';
-      failures += 1;
-    } else {
-      verdict = `PASS  ${usedIndexes.join(', ')}`;
-    }
-
-    console.log(`${verdict.padEnd(46)} ${testCase.name}`);
-    // Indent by depth: SQLite reports each step with its parent id.
-    const depth = new Map([[0, 0]]);
-    for (const row of rows) {
-      const level = (depth.get(row.parent) ?? 0) + 1;
-      depth.set(row.id, level);
-      console.log(`      ${'  '.repeat(level - 1)}${row.detail}`);
-    }
-  });
-
-  console.log('');
-  if (failures > 0) {
-    console.error(`${failures} of ${EXPLAIN_CASES.length} queries do not use a clicks index.`);
-    process.exit(1);
-  }
-  console.log(`All ${EXPLAIN_CASES.length} queries checked. None scans the clicks table.`);
-} finally {
-  await rm(dir, { recursive: true, force: true });
+  results = await d1Local(statements.join('\n'));
+} catch (error) {
+  console.error(String(error.message ?? error));
+  process.exit(1);
 }
+if (results.length !== EXPLAIN_CASES.length) {
+  throw new Error(`Expected ${EXPLAIN_CASES.length} plans, received ${results.length}.`);
+}
+
+let failures = 0;
+console.log('EXPLAIN QUERY PLAN, local database\n');
+
+EXPLAIN_CASES.forEach((testCase, index) => {
+  const rows = results[index].results ?? [];
+  const details = rows.map((row) => row.detail);
+  const scansClicks = details.some((detail) => /\bSCAN (c|clicks)\b/.test(detail));
+  const usedIndexes = CLICK_INDEXES.filter((name) => details.some((d) => d.includes(name)));
+  const scanned = testCase.noScan ? details.filter((detail) => /^SCAN /.test(detail)) : [];
+
+  let verdict;
+  if (scanned.length > 0) {
+    verdict = `FAIL  ${scanned.join(', ')}`;
+    failures += 1;
+  } else if (testCase.readsClicks && scansClicks) {
+    verdict = 'FAIL  full scan on clicks';
+    failures += 1;
+  } else if (testCase.readsClicks && usedIndexes.length === 0) {
+    verdict = 'FAIL  reads clicks without a clicks index';
+    failures += 1;
+  } else if (testCase.readsClicks) {
+    verdict = `PASS  ${usedIndexes.join(', ')}`;
+  } else if (testCase.noScan) {
+    verdict = 'PASS  index lookups only';
+  } else {
+    verdict = 'INFO  does not read clicks';
+  }
+
+  console.log(`${verdict.padEnd(52)} ${testCase.name}`);
+  // Indent by depth: SQLite reports each step with its parent id.
+  const depth = new Map([[0, 0]]);
+  for (const row of rows) {
+    const level = (depth.get(row.parent) ?? 0) + 1;
+    depth.set(row.id, level);
+    console.log(`      ${'  '.repeat(level - 1)}${row.detail}`);
+  }
+});
+
+console.log('');
+if (failures > 0) {
+  console.error(`${failures} of ${EXPLAIN_CASES.length} queries scan a table they must not scan.`);
+  process.exit(1);
+}
+console.log(`All ${EXPLAIN_CASES.length} queries checked. None scans clicks, and the redirector scans nothing.`);

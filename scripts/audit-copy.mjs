@@ -47,6 +47,9 @@ const RENDERED = [
   ['404 not found', pages.renderNotFound('portofolio')],
   ['410 gone', pages.renderGone('k7m2qx')],
   ['503 unavailable', pages.renderUnavailable('cv')],
+  ['429 link limit', pages.renderLinkLimit('r9pd3v')],
+  ['429 public capacity', pages.renderBusy('h2mc8e')],
+  ['200 public link notice', pages.renderInterstitial('x7kq2m', 'https://docs.google.com/forms/d/e/1FAIpQLSd3kR9vQx/viewform')],
 ];
 
 for (const [name, html] of RENDERED) {

@@ -1,8 +1,4 @@
-import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { ROOT } from './bundle.mjs';
+import { d1Local } from './d1.mjs';
 
 /**
  * Prints row counts and the id to slug mapping of the local database as JSON,
@@ -12,29 +8,22 @@ import { ROOT } from './bundle.mjs';
  */
 
 const SQL = [
-  'SELECT (SELECT COUNT(*) FROM links) AS links, (SELECT COUNT(*) FROM tags) AS tags, (SELECT COUNT(*) FROM link_tags) AS link_tags, (SELECT COUNT(*) FROM clicks) AS clicks, (SELECT COUNT(*) FROM clicks WHERE is_bot = 1) AS bot_clicks;',
+  'SELECT (SELECT COUNT(*) FROM links) AS links, (SELECT COUNT(*) FROM links WHERE is_public = 1) AS public_links, (SELECT COUNT(*) FROM tags) AS tags, (SELECT COUNT(*) FROM link_tags) AS link_tags, (SELECT COUNT(*) FROM clicks) AS clicks, (SELECT COUNT(*) FROM clicks WHERE is_bot = 1) AS bot_clicks, (SELECT COUNT(*) FROM blocked_domains) AS blocked_domains, (SELECT COUNT(*) FROM rate_limits) AS rate_limits, (SELECT COUNT(*) FROM public_click_budget) AS budget_days;',
   'SELECT id, slug FROM links ORDER BY id;',
-  'SELECT l.slug, COUNT(c.id) AS clicks FROM links l LEFT JOIN clicks c ON c.link_id = l.id GROUP BY l.id ORDER BY l.id;',
+  'SELECT l.slug, COUNT(c.id) AS clicks FROM links l LEFT JOIN clicks c ON c.link_id = l.id WHERE l.is_public = 0 GROUP BY l.id ORDER BY l.id;',
+  'SELECT slug, click_total, click_today FROM links WHERE is_public = 1 ORDER BY id;',
 ].join('\n');
 
-const dir = await mkdtemp(path.join(tmpdir(), 'daffa-counts-'));
-const file = path.join(dir, 'counts.sql');
 try {
-  await writeFile(file, SQL, 'utf8');
-  const run = spawnSync(
-    'npx',
-    ['wrangler', 'd1', 'execute', 'daffa-links', '--local', '--persist-to', '.wrangler-state', '-c', 'apps/redirector/wrangler.jsonc', '--json', '--file', `"${file}"`],
-    { cwd: ROOT, encoding: 'utf8', shell: true },
-  );
-  if (run.status !== 0) {
-    console.error(run.stdout, run.stderr);
-    process.exit(run.status ?? 1);
-  }
-  const results = JSON.parse(run.stdout.slice(run.stdout.indexOf('[')));
+  const results = await d1Local(SQL);
   const totals = results[0].results[0];
   const ids = Object.fromEntries(results[1].results.map((row) => [row.id, row.slug]));
   const perLink = Object.fromEntries(results[2].results.map((row) => [row.slug, row.clicks]));
-  console.log(JSON.stringify({ totals, ids, clicksPerLink: perLink }, null, 2));
-} finally {
-  await rm(dir, { recursive: true, force: true });
+  const publicCounters = Object.fromEntries(
+    results[3].results.map((row) => [row.slug, { total: row.click_total, today: row.click_today }]),
+  );
+  console.log(JSON.stringify({ totals, ids, clicksPerLink: perLink, publicCounters }, null, 2));
+} catch (error) {
+  console.error(String(error.message ?? error));
+  process.exit(1);
 }

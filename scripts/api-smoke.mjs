@@ -2,14 +2,18 @@
  * End to end smoke test for the dashboard API, run against `npm run dev`.
  *
  * Needs DEV_AUTH_BYPASS=true in apps/dashboard/.dev.vars and a migrated,
- * seeded local database. Exercises every endpoint, every CSRF case, and the
- * path from the redirector to the dashboard through the shared D1 state.
+ * seeded local database. Exercises every endpoint, every CSRF case, the path
+ * from the redirector to the dashboard through the shared D1 state, and every
+ * public link page at the redirector. Public link counters are read and set
+ * in the local database through wrangler, never the remote one.
  * Prints PASS or FAIL per check, removes every link it creates, and exits 1
  * on any failure.
  *
  *   SMOKE_DASHBOARD  default http://localhost:5173
  *   SMOKE_REDIRECT   default http://127.0.0.1:8787
  */
+
+import { d1Local } from './d1.mjs';
 
 const DASHBOARD = process.env.SMOKE_DASHBOARD ?? 'http://localhost:5173';
 const REDIRECT = process.env.SMOKE_REDIRECT ?? 'http://127.0.0.1:8787';
@@ -435,6 +439,139 @@ async function main() {
   if (redirect) {
     const redirectAfter = await redirectStatus(slugA);
     check('the deleted slug is a 404 at the redirector', redirectAfter.status === 404, `status ${redirectAfter.status}`);
+    await publicLinks();
+  }
+}
+
+/** 00:00 UTC of today, the day public click counters belong to. */
+const utcToday = () => Math.floor(Date.now() / DAY) * DAY;
+
+/** Rows of the last statement in `sql`, read from the local database. */
+async function rows(sql) {
+  const results = await d1Local(sql);
+  return results[results.length - 1]?.results ?? [];
+}
+
+async function counters(slug) {
+  const [row] = await rows(
+    `SELECT l.id, l.click_total, l.click_today, l.click_day, (SELECT COUNT(*) FROM clicks c WHERE c.link_id = l.id) AS logged, (SELECT clicks FROM public_click_budget WHERE day = ${utcToday()}) AS budget FROM links l WHERE l.slug = '${slug}'`,
+  );
+  return row;
+}
+
+/** Counters are written in waitUntil, so a read may need a moment to see them. */
+async function countersAfter(slug, ready) {
+  let row;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await sleep(attempt === 0 ? 300 : 1000);
+    row = await counters(slug);
+    if (row && ready(row)) break;
+  }
+  return row;
+}
+
+async function visit(slug, method = 'GET') {
+  const response = await fetch(`${REDIRECT}/${slug}`, { method, redirect: 'manual' });
+  return { status: response.status, headers: response.headers, body: await response.text() };
+}
+
+const noStore = (result) => result.headers.get('cache-control') === 'no-store, private';
+
+/** Retry-After must point at the next 00:00 UTC, within a two second margin. */
+function retryAfterOk(result) {
+  const expected = Math.ceil((utcToday() + DAY - Date.now()) / 1000);
+  return Math.abs(Number(result.headers.get('retry-after')) - expected) <= 2;
+}
+
+/**
+ * Public links at the redirector. The seed provides the links, and the states
+ * each check needs are set straight in the local database first, so the run is
+ * repeatable. Every value changed here is restored at the end.
+ */
+async function publicLinks() {
+  section('Public links at the redirector');
+  const day = utcToday();
+  let saved;
+  try {
+    const [links, budget] = await d1Local(
+      `SELECT slug, click_total, click_today, click_day FROM links WHERE slug IN ('x7kq2m', 'ze3k9r');` +
+        `SELECT clicks FROM public_click_budget WHERE day = ${day};`,
+    );
+    saved = { links: links.results, budget: budget.results[0]?.clicks ?? null };
+  } catch (error) {
+    check('local database reachable through wrangler', false, String(error.message ?? error).split('\n')[0]);
+    return;
+  }
+  if (!check('seeded public links present', saved.links.length === 2, 'run npm run seed:local')) return;
+
+  try {
+    // Start every run from the same place: x7kq2m well under its limit,
+    // ze3k9r one click short of it, and the shared budget far from used.
+    await d1Local(
+      `UPDATE links SET click_today = 41, click_day = ${day} WHERE slug = 'x7kq2m';` +
+        `UPDATE links SET click_today = 499, click_day = ${day} WHERE slug = 'ze3k9r';` +
+        `INSERT INTO public_click_budget (day, clicks) VALUES (${day}, 1000) ON CONFLICT (day) DO UPDATE SET clicks = 1000;`,
+    );
+
+    const cvBefore = await counters('cv');
+    const cv = await visit('cv');
+    check('a private link still redirects with 302 and no-store', cv.status === 302 && noStore(cv) && cv.headers.get('location') === 'https://www.linkedin.com/in/daffarestupratama', `status ${cv.status}`);
+    const cvAfter = await countersAfter('cv', (row) => row.logged > cvBefore.logged);
+    check('a private link visit still writes a clicks row', cvAfter.logged === cvBefore.logged + 1, `${cvBefore.logged} then ${cvAfter.logged}`);
+    check('a private link visit leaves the public budget alone', cvAfter.budget === cvBefore.budget);
+
+    const before = await counters('x7kq2m');
+    const notice = await visit('x7kq2m?ref=abc');
+    const href = 'href="https://docs.google.com/forms/d/e/1FAIpQLSd3kR9vQx/viewform"';
+    check('a public link serves the notice with 200', notice.status === 200 && notice.headers.get('content-type')?.startsWith('text/html') && noStore(notice), `status ${notice.status}`);
+    check('the notice names the destination and links straight to it', notice.body.includes('EXTERNAL LINK') && notice.body.includes(href) && notice.body.includes('<strong>docs.google.com</strong>'));
+    check('the incoming query string is ignored on the Continue link', !notice.body.includes('ref=abc'));
+    check('the notice stays under 3 KB apart from the destination URL', new TextEncoder().encode(notice.body.replaceAll('https://docs.google.com/forms/d/e/1FAIpQLSd3kR9vQx/viewform', '')).byteLength <= 3072);
+    const after = await countersAfter('x7kq2m', (row) => row.click_total > before.click_total);
+    check('a public visit raises the link total and today by 1', after.click_total === before.click_total + 1 && after.click_today === before.click_today + 1, JSON.stringify({ before, after }));
+    check('a public visit raises the shared daily budget by 1', after.budget === before.budget + 1, `${before.budget} then ${after.budget}`);
+    check('a public visit writes no clicks row', after.logged === 0, `${after.logged} rows`);
+
+    const head = await visit('x7kq2m', 'HEAD');
+    const afterHead = await countersAfter('x7kq2m', () => false);
+    check('HEAD on a public link is a 200 that counts nothing', head.status === 200 && afterHead.click_total === after.click_total && afterHead.budget === after.budget);
+
+    const last = await visit('ze3k9r');
+    check('the 500th click of the day is still served', last.status === 200, `status ${last.status}`);
+    const full = await countersAfter('ze3k9r', (row) => row.click_today >= 500);
+    check('the link reaches 500 clicks today', full.click_today === 500, `${full.click_today}`);
+    const limited = await visit('ze3k9r');
+    check('the next click hits the daily limit with 429', limited.status === 429 && limited.body.includes('Daily click limit reached') && noStore(limited), `status ${limited.status}`);
+    const afterLimit = await countersAfter('ze3k9r', () => false);
+    check('a refused click is not counted', afterLimit.click_today === 500 && afterLimit.budget === full.budget);
+
+    const atCap = await visit('r9pd3v');
+    check('a link at its limit is a 429 with the link limit page', atCap.status === 429 && atCap.body.includes('CODE 429 · LINK LIMIT'), `status ${atCap.status}`);
+    check('Retry-After points at the next 00:00 UTC', retryAfterOk(atCap), atCap.headers.get('retry-after'));
+    const past = await visit('v6hd9k');
+    check('a link past its limit is a 429 as well', past.status === 429, `status ${past.status}`);
+
+    await d1Local(`UPDATE public_click_budget SET clicks = 20000 WHERE day = ${day};`);
+    const busy = await visit('x7kq2m');
+    check('a used up shared budget gives 429 with the busy page', busy.status === 429 && busy.body.includes('Public links are temporarily busy') && noStore(busy), `status ${busy.status}`);
+    check('the busy page carries Retry-After to 00:00 UTC', retryAfterOk(busy), busy.headers.get('retry-after'));
+    const privateDuringBusy = await visit('cv');
+    check('a private link is never affected by the budget', privateDuringBusy.status === 302, `status ${privateDuringBusy.status}`);
+
+    const disabled = await visit('tq6wna');
+    check('a disabled public link is a 410', disabled.status === 410, `status ${disabled.status}`);
+    const unknown = await visit('q9q9q9');
+    check('an unknown public slug is a 404', unknown.status === 404, `status ${unknown.status}`);
+  } finally {
+    const restore = saved.links.map(
+      (link) => `UPDATE links SET click_total = ${link.click_total}, click_today = ${link.click_today}, click_day = ${link.click_day} WHERE slug = '${link.slug}';`,
+    );
+    restore.push(
+      saved.budget === null
+        ? `DELETE FROM public_click_budget WHERE day = ${day};`
+        : `INSERT INTO public_click_budget (day, clicks) VALUES (${day}, ${saved.budget}) ON CONFLICT (day) DO UPDATE SET clicks = ${saved.budget};`,
+    );
+    await d1Local(restore.join('\n'));
   }
 }
 

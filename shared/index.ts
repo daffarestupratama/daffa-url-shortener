@@ -6,3 +6,5 @@ export * from './status';
 export * from './bot';
 export * from './tokens';
 export * from './time';
+export * from './domains';
+export * from './public';

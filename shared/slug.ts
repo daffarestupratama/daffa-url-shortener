@@ -24,9 +24,12 @@ export const RESERVED: readonly string[] = [
   'robots',
 ];
 
-/** Ambiguous characters are left out: no lowercase L, no O, no zero, no one. */
-const GENERATE_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
-const GENERATE_LENGTH = 6;
+/**
+ * Ambiguous characters are left out: no lowercase L, no O, no zero, no one.
+ * Public slugs use the same alphabet and length.
+ */
+export const SLUG_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
+export const GENERATED_SLUG_LENGTH = 6;
 
 export interface SlugOwner {
   slug: string;
@@ -104,8 +107,8 @@ export function generateSlug(
 ): string {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     let candidate = '';
-    for (let i = 0; i < GENERATE_LENGTH; i += 1) {
-      candidate += GENERATE_ALPHABET.charAt(Math.floor(Math.random() * GENERATE_ALPHABET.length));
+    for (let i = 0; i < GENERATED_SLUG_LENGTH; i += 1) {
+      candidate += SLUG_ALPHABET.charAt(Math.floor(Math.random() * SLUG_ALPHABET.length));
     }
     if (!RESERVED.includes(candidate) && !isTaken(candidate)) return candidate;
   }

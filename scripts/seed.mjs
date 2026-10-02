@@ -136,6 +136,48 @@ const LINKS = [
   { slug: 'data-workshop-materials-for-the-jakarta-meetup-2026', url: 'https://drive.google.com/drive/folders/1WkSh0pM4t3r14ls', title: 'Data workshop materials JakartaMeetupNotebooksDatasetsAndSlidesArchiveForEveryAttendee2026', description: 'Mirror of WorkshopNotebooksPandasScikitLearnAndVisualizationExercisesWithSolutions at https://drive.google.com/drive/folders/1WkSh0pM4t3r14ls/jakarta-meetup-2026/notebooks-and-datasets?usp=sharing&resourcekey=0-AbCdEfGhIjKlMnOpQrStUv for attendees.', tags: [], active: true, createdDaysAgo: 41, expiresInDays: null, clicks: 28 },
 ];
 
+/**
+ * Public links from the design table, created by anonymous visitors. They
+ * follow the 10 private links as ids 11 to 19 and carry counters only, never
+ * clicks rows. Today's counts cover every redirector state: well under the
+ * daily limit, one click short of it (ze3k9r), exactly at it (r9pd3v), and past
+ * it the way simultaneous visits can overshoot (v6hd9k). tq6wna points at a
+ * blocked domain and was disabled when the domain was blocked.
+ */
+const PUBLIC_LINKS = [
+  { slug: 'x7kq2m', url: 'https://docs.google.com/forms/d/e/1FAIpQLSd3kR9vQx/viewform', createdHoursAgo: 5, total: 318, today: 41, active: true },
+  { slug: 'bn4tzw', url: 'https://www.tokopedia.com/tokobukuilmu/buku-statistika-dasar-edisi-3', createdHoursAgo: 18, total: 1204, today: 212, active: true },
+  { slug: 'r9pd3v', url: 'https://www.youtube.com/watch?v=Qm7kL2xTn4E', createdHoursAgo: 46, total: 4870, today: 500, active: true },
+  { slug: 'h2mc8e', url: 'https://www.notion.so/Catatan-Kuliah-Basis-Data-3f9a1c7e2b', createdHoursAgo: 75, total: 96, today: 7, active: true },
+  { slug: 'tq6wna', url: 'https://grabgift-promo.com/klaim-voucher?ref=wa', createdHoursAgo: 84, total: 57, today: 0, active: false },
+  { slug: 'ze3k9r', url: 'https://drive.google.com/drive/folders/1Xk9pQ2mRv7Ls', createdHoursAgo: 123, total: 731, today: 499, active: true },
+  { slug: 'm4vj7s', url: 'https://www.canva.com/design/DAGk2Lm9xQ/view', createdHoursAgo: 161, total: 263, today: 18, active: true },
+  { slug: 'c8np2x', url: 'https://github.com/rizkyprtm/tugas-akhir-sentimen', createdHoursAgo: 213, total: 142, today: 9, active: true },
+  { slug: 'v6hd9k', url: 'https://www.instagram.com/p/DAx7Lm2pQ9k/', createdHoursAgo: 260, total: 2350, today: 520, active: true },
+];
+
+/** Blocked hostnames from the design, with how long ago each was added. */
+const BLOCKED_DOMAINS = [
+  { host: 'hadiah-dana-kaget.xyz', addedHoursAgo: 20 },
+  { host: 'shopee-voucher-gratis.click', addedHoursAgo: 51 },
+  { host: 'bri-update-data.online', addedHoursAgo: 78 },
+  { host: 'slot-gacor-maxwin.vip', addedHoursAgo: 89 },
+  { host: 'pinjol-cepat-cair.biz', addedHoursAgo: 120 },
+  { host: 'claim-airdrop-usdt.io', addedHoursAgo: 150 },
+  { host: 'wa-verifikasi-akun.net', addedHoursAgo: 152 },
+  { host: 'grabgift-promo.com', addedHoursAgo: 175 },
+  { host: 'login-verif-bca.site', addedHoursAgo: 457 },
+  { host: 'freebet88.net', addedHoursAgo: 768 },
+];
+
+const HOUR = 60 * 60 * 1000;
+
+/** 00:00 UTC of today, the day public click counters belong to. */
+const UTC_TODAY = Math.floor(NOW / DAY) * DAY;
+
+/** The host without a leading www, the title every public link receives. */
+const publicTitle = (url) => new URL(url).hostname.replace(/^www\./, '');
+
 /** Start of a WIB calendar day, expressed as an epoch value. */
 function wibDayStart(ms) {
   return Math.floor((ms + WIB) / DAY) * DAY - WIB;
@@ -228,6 +270,9 @@ function buildSql() {
     'DELETE FROM link_tags;',
     'DELETE FROM tags;',
     'DELETE FROM links;',
+    'DELETE FROM blocked_domains;',
+    'DELETE FROM rate_limits;',
+    'DELETE FROM public_click_budget;',
     '',
   ];
 
@@ -242,6 +287,32 @@ function buildSql() {
   statements.push(
     'INSERT INTO links (id, slug, url, title, description, is_active, expires_at, created_at, updated_at) VALUES',
     `${linkValues.join(',\n')};`,
+    '',
+  );
+
+  const publicValues = PUBLIC_LINKS.map((link, index) => {
+    const id = LINKS.length + index + 1;
+    const createdAt = NOW - link.createdHoursAgo * HOUR;
+    return `(${id}, ${quote(link.slug)}, ${quote(link.url)}, ${quote(publicTitle(link.url))}, '', ${link.active ? 1 : 0}, NULL, ${createdAt}, ${createdAt}, 1, ${link.total}, ${UTC_TODAY}, ${link.today})`;
+  });
+  statements.push(
+    'INSERT INTO links (id, slug, url, title, description, is_active, expires_at, created_at, updated_at, is_public, click_total, click_day, click_today) VALUES',
+    `${publicValues.join(',\n')};`,
+    '',
+  );
+
+  const budgetToday = PUBLIC_LINKS.reduce((sum, link) => sum + link.today, 0);
+  statements.push(
+    `INSERT INTO public_click_budget (day, clicks) VALUES (${UTC_TODAY}, ${budgetToday});`,
+    '',
+  );
+
+  const blockedValues = BLOCKED_DOMAINS.map(
+    (domain) => `(${quote(domain.host)}, ${NOW - domain.addedHoursAgo * HOUR})`,
+  );
+  statements.push(
+    'INSERT INTO blocked_domains (host, created_at) VALUES',
+    `${blockedValues.join(',\n')};`,
     '',
   );
 
@@ -289,7 +360,8 @@ const oldest = clicks.length > 0 ? new Date(clicks[0].ts) : null;
 const newest = clicks.length > 0 ? new Date(clicks[clicks.length - 1].ts) : null;
 
 console.log(`Wrote ${SQL_FILE}`);
-console.log(`  links    ${LINKS.length}`);
+console.log(`  links    ${LINKS.length} private, ${PUBLIC_LINKS.length} public`);
+console.log(`  blocked  ${BLOCKED_DOMAINS.length} domains`);
 console.log(`  tags     ${tagNames.length} (${tagNames.join(', ')})`);
 console.log(
   `  clicks   ${clicks.length} total, ${bots} bot (${Math.round((bots / clicks.length) * 100)} percent)`,

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  GENERATED_SLUG_LENGTH,
   RESERVED,
+  SLUG_ALPHABET,
   SLUG_RE,
   generateSlug,
   isValidSlugPath,
@@ -121,5 +123,15 @@ describe('generateSlug', () => {
 
   it('gives up rather than looping forever', () => {
     expect(() => generateSlug(() => true, 5)).toThrow('Unable to generate an unused slug.');
+  });
+});
+
+describe('SLUG_ALPHABET', () => {
+  it('holds 32 unambiguous characters and generated slugs use only those', () => {
+    expect(SLUG_ALPHABET).toHaveLength(32);
+    expect(SLUG_ALPHABET).not.toMatch(/[lo01]/);
+    const slug = generateSlug();
+    expect(slug).toHaveLength(GENERATED_SLUG_LENGTH);
+    expect([...slug].every((char) => SLUG_ALPHABET.includes(char))).toBe(true);
   });
 });

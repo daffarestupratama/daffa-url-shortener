@@ -19,6 +19,30 @@ export function hourStart(ms: number): number {
   return Math.floor(ms / HOUR_MS) * HOUR_MS;
 }
 
+/** The start of the clock hour after the one containing `ms`. */
+export function nextHourStart(ms: number): number {
+  return hourStart(ms) + HOUR_MS;
+}
+
+/**
+ * 00:00 UTC of the day containing `ms`. Public link click limits count per UTC
+ * day, which begins at 07:00 WIB, the same moment Cloudflare resets its daily
+ * free plan quotas.
+ */
+export function utcDayStart(ms: number): number {
+  return Math.floor(ms / DAY_MS) * DAY_MS;
+}
+
+/** 00:00 UTC of the following day, when public daily limits reset. */
+export function nextUtcDayStart(ms: number): number {
+  return utcDayStart(ms) + DAY_MS;
+}
+
+/** Whole seconds from `now` until `target`, rounded up and never below 1. Used for Retry-After. */
+export function secondsUntil(target: number, now: number): number {
+  return Math.max(1, Math.ceil((target - now) / 1000));
+}
+
 /** Midnight WIB of the day containing `ms`, as an epoch value. */
 export function wibDayStart(ms: number): number {
   return Math.floor((ms + WIB_OFFSET_MS) / DAY_MS) * DAY_MS - WIB_OFFSET_MS;
