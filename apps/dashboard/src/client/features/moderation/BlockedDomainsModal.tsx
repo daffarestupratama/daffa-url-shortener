@@ -114,9 +114,8 @@ export function BlockedDomainsModal({
           </IconButton>
         </div>
         <p className={styles.desc}>
-          Public links to these hostnames and their subdomains are rejected. Private links are not affected.
-          Removing a domain does not enable public links that were disabled when it was blocked. Those links stay
-          disabled and can be enabled one by one on the Public tab.
+          New public links to these domains and their subdomains are rejected. Removing a domain does not re-enable
+          links that the block disabled.
         </p>
 
         <form onSubmit={add} noValidate>

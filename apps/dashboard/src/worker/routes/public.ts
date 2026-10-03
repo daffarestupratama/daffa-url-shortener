@@ -4,10 +4,10 @@ import {
   PUBLIC_URL_MAX_LENGTH,
   SHORT_LINK_ORIGIN,
   blockedDomainMessage,
+  canonicalUrl,
   checkPublicUrl,
   hourStart,
   nextHourStart,
-  normalizeUrlInput,
   publicTitle,
   randomPublicSlug,
   secondsUntil,
@@ -71,9 +71,9 @@ export function createPublicRoutes({
 
     const problem = checkPublicUrl(input.url);
     if (problem) throw new ApiError('invalid_url', problem.message, { reason: problem.code });
-    // Stored in the parser's own form: lowercase scheme and host, punycode,
-    // percent encoding. checkPublicUrl has parsed it already, so this succeeds.
-    const url = new URL(normalizeUrlInput(input.url)).href;
+    // Stored canonical, in the parser's own form: lowercase scheme and host,
+    // punycode, percent encoding, the same as the owner's links.
+    const url = canonicalUrl(input.url);
     if (url.length > PUBLIC_URL_MAX_LENGTH) {
       throw new ApiError('invalid_url', `Destination URL must be ${PUBLIC_URL_MAX_LENGTH} characters or fewer.`, {
         reason: 'too_long',

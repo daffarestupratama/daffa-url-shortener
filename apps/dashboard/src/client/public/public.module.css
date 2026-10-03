@@ -275,10 +275,15 @@
 /* The area reserved for Cloudflare Turnstile. The outline sits outside the
    300 x 65 box, so the widget fills the box exactly and the border stays
    visible around it. */
+/* The field asks for the 300 px of the normal widget and shrinks with the form
+   below that. TurnstileSlot measures it to choose the compact widget, so its
+   width follows the room available, never the widget inside. */
 .tsField {
   display: flex;
+  flex: 0 1 300px;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
   max-width: 100%;
 }
 .tsField > [role='alert'] { max-width: 300px; }
@@ -294,6 +299,17 @@
   border-radius: 6px;
   background: var(--turnstile-bg);
   outline: 1px dashed var(--line);
+}
+/* The compact widget, for slots narrower than 300 px. */
+.tsSlotCompact {
+  width: 150px;
+  height: 140px;
+  padding: 0 8px;
+}
+.tsSlotCompact .tsPlaceholder {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.4;
 }
 .tsSlotError { outline: 2px dashed var(--danger); }
 
@@ -427,16 +443,26 @@
   color: var(--ink);
 }
 
+/* Side by side while both fit 120 px, stacked below that. Every row has the
+   same height and every button the same width, and labels wrap and center
+   instead of overflowing. */
 .qrButtons {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr));
+  grid-auto-rows: 1fr;
   gap: 10px;
   width: 100%;
   max-width: 280px;
 }
+/* Scoped with the element so it wins over the shared button styles in any CSS order. */
 .qrButtons > button {
-  padding: 0 10px;
+  height: auto;
+  min-height: 48px;
+  padding: 8px 10px;
   font-size: 15px;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
 }
 
 /* Rate limit dialogs ------------------------------------------------------------- */

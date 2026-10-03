@@ -1,9 +1,9 @@
 import {
+  canonicalUrl,
   isPublicSlug,
   normalizeHost,
   normalizeTag,
   normalizeTags,
-  normalizeUrlInput,
   validateSlug,
   validateUrl,
   type LinkInput,
@@ -180,9 +180,10 @@ export function parseLinkInput(body: unknown, mode: 'create' | 'patch'): LinkInp
   const input: LinkInput = {};
 
   if ('url' in record) {
-    // Stored as normalized, so example.com is saved as https://example.com.
-    // The length counts after normalization, prefix included.
-    const url = normalizeUrlInput(requireString(record.url, 'url'));
+    // Stored canonical, so example.com is saved as https://example.com/ and
+    // http:example.com/x as http://example.com/x. The length counts after
+    // canonicalization, prefix and percent encoding included.
+    const url = canonicalUrl(requireString(record.url, 'url'));
     if (url.length > MAX_URL_LENGTH) {
       throw new ApiError('invalid_url', 'Destination URL must be 2048 characters or fewer.');
     }

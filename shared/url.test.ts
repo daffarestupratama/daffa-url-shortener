@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   INVALID_URL_FORMAT,
   blockedDomainMessage,
+  canonicalUrl,
   checkPublicUrl,
   hostOf,
   hostPath,
@@ -134,6 +135,40 @@ describe('checkPublicUrl', () => {
     expect(validateUrl('https://shorten.daffa.me')).toBeNull();
     expect(validateUrl('https://bit.ly/3xYz9Qa')).toBeNull();
     expect(validateUrl('http://127.0.0.1/')).toBeNull();
+  });
+});
+
+describe('canonicalUrl', () => {
+  it('repairs a scheme without its slashes', () => {
+    expect(canonicalUrl('http:example.com/coba-satu')).toBe('http://example.com/coba-satu');
+    expect(canonicalUrl('https:/example.com/x')).toBe('https://example.com/x');
+  });
+
+  it('lowercases the scheme and the host, never the path', () => {
+    expect(canonicalUrl('HTTPS://EXAMPLE.com/A')).toBe('https://example.com/A');
+    expect(canonicalUrl('http://WWW.Example.COM/Path?Q=1')).toBe('http://www.example.com/Path?Q=1');
+  });
+
+  it('gives a bare host its slash, as public links have always been stored', () => {
+    expect(canonicalUrl('example.com')).toBe('https://example.com/');
+    expect(canonicalUrl('https://example.com')).toBe('https://example.com/');
+  });
+
+  it('keeps a canonical address and trims around it', () => {
+    expect(canonicalUrl('  https://example.com/a?b=C#d ')).toBe('https://example.com/a?b=C#d');
+  });
+
+  it('leaves what does not parse as http or https to the validators', () => {
+    expect(canonicalUrl('javascript:alert(1)')).toBe('javascript:alert(1)');
+    expect(canonicalUrl('not a url')).toBe('https://not a url');
+    expect(canonicalUrl('')).toBe('');
+  });
+
+  it('changes nothing when applied twice', () => {
+    for (const value of ['http:example.com/x', 'HTTPS://EXAMPLE.com/A', 'example.com', 'not a url']) {
+      const once = canonicalUrl(value);
+      expect(canonicalUrl(once), value).toBe(once);
+    }
   });
 });
 

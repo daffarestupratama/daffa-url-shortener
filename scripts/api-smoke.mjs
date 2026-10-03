@@ -363,7 +363,9 @@ async function main() {
   const bareRedirect = await redirectStatus(slugC).catch(() => null);
   check('the redirector sends that link to the normalized URL', bareRedirect?.location === `https://example.com/${RUN}`, bareRedirect?.location);
   const patchedBare = await api('PATCH', `/api/admin/links/${linkC?.id}`, { body: { url: 'WWW.example.org/patched' } });
-  check('PATCH with a bare URL stores it normalized', patchedBare.json?.link?.url === 'https://WWW.example.org/patched', patchedBare.json?.link?.url);
+  check('PATCH with a bare URL stores it canonical, host lowercased', patchedBare.json?.link?.url === 'https://www.example.org/patched', patchedBare.json?.link?.url);
+  const patchedSlashes = await api('PATCH', `/api/admin/links/${linkC?.id}`, { body: { url: 'http:example.com/coba-satu' } });
+  check('a scheme typed without its slashes is stored repaired', patchedSlashes.json?.link?.url === 'http://example.com/coba-satu', patchedSlashes.json?.link?.url);
   const script = await createLink({ url: 'javascript:alert(1)', slug: `${RUN}-x` });
   check(
     'a javascript: destination is refused with the new format message',

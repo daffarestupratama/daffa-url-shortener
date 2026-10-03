@@ -1,4 +1,4 @@
-import { checkPublicUrl, normalizeUrlInput, randomPublicSlug, type PublicCreateResult } from '@daffa/shared';
+import { canonicalUrl, checkPublicUrl, randomPublicSlug, type PublicCreateResult } from '@daffa/shared';
 import { useRef, useState, type FormEvent } from 'react';
 import { Button } from '../components/controls';
 import { FieldError, Help, Label, Preview, TextInput } from '../components/fields';
@@ -80,7 +80,7 @@ export function PublicForm({ force, preview = false, loadTurnstile = true, onCre
     setFieldError(null);
     setRetry(false);
     try {
-      const result = await createPublicLink({ url: normalizeUrlInput(url), slug, turnstileToken: token });
+      const result = await createPublicLink({ url: canonicalUrl(url), slug, turnstileToken: token });
       onCreated(result);
       setUrl('');
       setSlug(randomPublicSlug());

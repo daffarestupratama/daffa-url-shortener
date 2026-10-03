@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { FieldError } from '../components/fields';
 import { loadTurnstile, turnstileSiteKey, type TurnstileApi } from './turnstile';
 import styles from './public.module.css';
@@ -30,19 +30,47 @@ interface TurnstileSlotProps {
   load?: boolean;
 }
 
+/** Width of the normal widget. Below it, the compact widget of 150 x 140 is used. */
+const NORMAL_WIDTH = 300;
+
+type WidgetSize = 'normal' | 'compact';
+
 /**
- * The 300 x 65 area the design reserves for Cloudflare Turnstile. The widget
+ * The widget size that fits the room the form gives the slot, measured, then
+ * watched with a ResizeObserver. Null until the first measurement, so the
+ * widget never renders at a size it then has to replace. Only a change of
+ * size class causes a new value, never a resize within one class.
+ */
+function useWidgetSize(ref: RefObject<HTMLElement | null>): WidgetSize | null {
+  const [size, setSize] = useState<WidgetSize | null>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const measure = () => setSize(element.getBoundingClientRect().width < NORMAL_WIDTH ? 'compact' : 'normal');
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return size;
+}
+
+/**
+ * The area the design reserves for Cloudflare Turnstile. The widget
  * renders into it explicitly once the script has loaded. Until then, and in
  * the forced previews, the slot shows its placeholder.
  */
 export function TurnstileSlot({ error, onToken, onError, resetKey, load = true }: TurnstileSlotProps) {
+  const field = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const widget = useRef<{ api: TurnstileApi; id: string } | null>(null);
   const handlers = useRef({ onToken, onError });
   handlers.current = { onToken, onError };
+  const size = useWidgetSize(field);
 
   useEffect(() => {
-    if (!load) return;
+    if (!load || size === null) return;
     let active = true;
     loadTurnstile().then(
       (api) => {
@@ -51,7 +79,7 @@ export function TurnstileSlot({ error, onToken, onError, resetKey, load = true }
         const id = api.render(element, {
           sitekey: turnstileSiteKey(),
           theme: 'light',
-          size: 'normal',
+          size,
           'refresh-expired': 'auto',
           callback: (token) => handlers.current.onToken(token),
           // An expired token is replaced automatically. Until then there is none to send.
@@ -74,10 +102,15 @@ export function TurnstileSlot({ error, onToken, onError, resetKey, load = true }
     );
     return () => {
       active = false;
-      if (widget.current) widget.current.api.remove(widget.current.id);
+      if (widget.current) {
+        widget.current.api.remove(widget.current.id);
+        // A token belongs to the widget that issued it. When the slot changes
+        // size, the next widget has to verify again.
+        handlers.current.onToken(null);
+      }
       widget.current = null;
     };
-  }, [load]);
+  }, [load, size]);
 
   const firstReset = useRef(true);
   useEffect(() => {
@@ -90,8 +123,8 @@ export function TurnstileSlot({ error, onToken, onError, resetKey, load = true }
   }, [resetKey]);
 
   return (
-    <div className={styles.tsField}>
-      <div className={cx(styles.tsSlot, error && styles.tsSlotError)}>
+    <div ref={field} className={styles.tsField}>
+      <div className={cx(styles.tsSlot, size === 'compact' && styles.tsSlotCompact, error && styles.tsSlotError)}>
         <span className={cx(styles.tsPlaceholder, error === 'failed' && styles.tsPlaceholderError)} aria-hidden="true">
           {error === 'failed' ? 'FAILED OR EXPIRED' : 'CLOUDFLARE TURNSTILE'}
         </span>

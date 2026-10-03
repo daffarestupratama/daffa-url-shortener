@@ -50,6 +50,26 @@ export function normalizeUrlInput(value: string): string {
   return `https://${trimmed}`;
 }
 
+/**
+ * The form a destination is stored in: normalizeUrlInput, then the parser's
+ * own serialization for http and https. That repairs what the parser accepts
+ * but a person would not expect to keep, and lowercases the scheme and host:
+ *
+ *   http:example.com/x      http://example.com/x
+ *   https:/example.com/x    https://example.com/x
+ *   HTTPS://EXAMPLE.com/A   https://example.com/A
+ *   example.com             https://example.com/   (a bare host gains its slash)
+ *
+ * Anything that does not parse as http or https comes back normalized but
+ * otherwise unchanged, so the validators still see and reject it. Applying it
+ * twice changes nothing.
+ */
+export function canonicalUrl(value: string): string {
+  const normalized = normalizeUrlInput(value);
+  const url = parseHttp(normalized);
+  return url ? url.href : normalized;
+}
+
 /** Parses an http or https address, or returns null for anything else. */
 function parseHttp(value: string): URL | null {
   try {

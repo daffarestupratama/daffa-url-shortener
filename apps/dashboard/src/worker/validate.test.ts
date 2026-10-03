@@ -181,7 +181,9 @@ describe('parseLinkInput', () => {
 
   it('stores the URL normalized, on create and on patch', () => {
     expect(parseLinkInput({ ...valid, url: '  example.com/a ' }, 'create').url).toBe('https://example.com/a');
-    expect(parseLinkInput({ url: 'HTTP://Example.com/A' }, 'patch').url).toBe('http://Example.com/A');
+    expect(parseLinkInput({ url: 'HTTP://Example.com/A' }, 'patch').url).toBe('http://example.com/A');
+    expect(parseLinkInput({ url: 'http:example.com/coba-satu' }, 'patch').url).toBe('http://example.com/coba-satu');
+    expect(parseLinkInput({ url: 'https:/example.com/x' }, 'patch').url).toBe('https://example.com/x');
     expect(apiError(() => parseLinkInput({ url: 'javascript:alert(1)' }, 'patch')).code).toBe('invalid_url');
   });
 

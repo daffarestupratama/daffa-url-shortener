@@ -1,9 +1,9 @@
 import {
   addTag,
+  canonicalUrl,
   deriveStatus,
   generateSlug,
   hostPath,
-  normalizeUrlInput,
   validateSlug,
   validateUrl,
   type Link,
@@ -140,7 +140,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
     if (validateUrl(url, { required: true }) || validateSlug(slug, { required: true }) || slugTakenError) return;
 
     const input: LinkInput = {
-      url: normalizeUrlInput(url),
+      url: canonicalUrl(url),
       slug,
       title: title.trim(),
       description: description.trim(),
@@ -332,7 +332,7 @@ export function LinkFormDrawer({ mode, link, seed, onClose }: LinkFormDrawerProp
             <span className={styles.previewTitle}>PREVIEW</span>
             <div className={styles.previewCard}>
               <GateTile slug={previewSlug} variant="preview" prefix="domain" />
-              <span className={styles.previewDest}>{url.trim() ? hostPath(normalizeUrlInput(url)) : 'Destination URL not set'}</span>
+              <span className={styles.previewDest}>{url.trim() ? hostPath(urlPreview(url) ?? url.trim()) : 'Destination URL not set'}</span>
               <div className={styles.previewStatus}>
                 <StatusBadge status={previewStatus} />
                 <span className={styles.previewExp}>
