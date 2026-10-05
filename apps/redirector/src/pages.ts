@@ -8,7 +8,8 @@ import {
 
 /**
  * The visitor pages, ported from Halaman Pengunjung.dc.html: not found, gone,
- * unavailable, the two public link limit pages, and the public link notice.
+ * unavailable, the two public link limit pages, the attempt limit page of the
+ * slug guessing guard, and the public link notice.
  *
  * Each one is a single self contained document: inline CSS, no JavaScript, no
  * web fonts, no images, shadows via box-shadow only, and under 3 KB. The design
@@ -201,6 +202,24 @@ const BUSY: PageSpec = {
     'All public links on daffa.me reached the shared daily capacity. Public links open again after the daily reset at 07:00 WIB.',
 };
 
+/**
+ * One network opened too many addresses that do not exist (see guard.ts).
+ * Orange marks a limit that resets on its own, here after about a minute.
+ */
+const ATTEMPT_LIMIT: PageSpec = {
+  status: 429,
+  footer: 'CODE 429 · ATTEMPT LIMIT',
+  badge: {
+    text: 'PAUSED',
+    background: '--exp',
+    foreground: '--sh-l',
+    shadow: '--badge-in',
+  },
+  heading: 'Too many unknown links',
+  body: () =>
+    'Many addresses that do not exist were opened from this network in a short time. Short links open again in about one minute.',
+};
+
 /** Exported for scripts/check-page-size.mjs and scripts/audit-copy.mjs. */
 export const PAGES = {
   notFound: NOT_FOUND,
@@ -208,6 +227,7 @@ export const PAGES = {
   unavailable: UNAVAILABLE,
   linkLimit: LINK_LIMIT,
   busy: BUSY,
+  attemptLimit: ATTEMPT_LIMIT,
 } as const;
 
 export function renderNotFound(slug: string): string {
@@ -228,6 +248,11 @@ export function renderLinkLimit(slug: string): string {
 
 export function renderBusy(slug: string): string {
   return render(BUSY, slug);
+}
+
+/** `path` is the requested path, slug or not, as the not found page shows it. */
+export function renderAttemptLimit(path: string): string {
+  return render(ATTEMPT_LIMIT, path);
 }
 
 const v = tokenValue;

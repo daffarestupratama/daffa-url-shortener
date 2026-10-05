@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: [
       'shared/**/*.test.ts',
+      'apps/redirector/src/**/*.test.ts',
       'apps/dashboard/src/worker/**/*.test.ts',
       'apps/dashboard/src/client/**/*.test.ts',
     ],

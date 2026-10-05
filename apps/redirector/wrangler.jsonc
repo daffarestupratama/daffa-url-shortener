@@ -12,6 +12,22 @@
 
   "observability": { "enabled": true },
 
+  // The slug guessing guard (src/guard.ts) counts misses, requests that end in
+  // the 404 page, per network: 10 per 60 seconds, then 60 seconds of 429 for
+  // every request from it. Counters are kept per Cloudflare location, in
+  // memory, without a network call. The period may only be 10 or 60. The
+  // values must equal MISS_LIMIT and MISS_WINDOW_SECONDS in guard.ts, which a
+  // unit test checks. namespace_id must be unique in the account.
+  // The guard also needs the secret RATE_LIMIT_SECRET, which keys the HMAC of
+  // the visitor's address. Without it the guard stays off.
+  "ratelimits": [
+    {
+      "name": "MISS_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
+
   "d1_databases": [
     {
       "binding": "DB",

@@ -7,8 +7,8 @@ import { ROOT, importTs } from './bundle.mjs';
  * link.daffa.me, which the browser fetches before any script of the public
  * page or the dashboard, is held to the same limit.
  *
- * The 404, 410, and 503 pages are measured against a slug at the 80 character
- * maximum. The two public limit pages are only ever served for public links,
+ * The 404, 410, 503, and attempt limit pages are measured against a slug at
+ * the 80 character maximum. The two public limit pages are only ever served for public links,
  * whose slugs are always exactly 6 characters, so that is their worst case.
  *
  * The public link notice prints the destination URL twice, in the Continue
@@ -53,6 +53,7 @@ for (const [name, render] of [
   ['404 not found', pages.renderNotFound],
   ['410 gone', pages.renderGone],
   ['503 unavailable', pages.renderUnavailable],
+  ['429 attempt limit', pages.renderAttemptLimit],
 ]) {
   report(name, bytes(render(WORST_CASE_SLUG)), bytes(render(REALISTIC_SLUG)));
 }

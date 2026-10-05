@@ -10,9 +10,19 @@ import {
   utcDayStart,
 } from '@daffa/shared';
 import { countPublicClick } from './count';
+import {
+  blockedInCache,
+  blockedInMemory,
+  defaultCache,
+  guardKey,
+  isAutoPath,
+  recordMiss,
+  type GuardEnv,
+} from './guard';
 import { logClick } from './log';
 import {
   pageResponse,
+  renderAttemptLimit,
   renderBusy,
   renderGone,
   renderInterstitial,
@@ -23,7 +33,7 @@ import {
 import ROBOTS from './robots.txt';
 import { LOOKUP } from './sql';
 
-export interface Env {
+export interface Env extends GuardEnv {
   DB: D1Database;
 }
 
@@ -64,25 +74,59 @@ app.on(['GET', 'HEAD'], '/*', async (c) => {
   const { pathname } = new URL(c.req.url);
   const slug = normalizeSlugPath(pathname);
 
-  // A path that cannot be a slug is answered straight away, so junk traffic
-  // never reaches the database.
-  if (!isValidSlugPath(slug)) {
+  // Browsers and crawlers ask for these on their own. They are never slugs,
+  // so they neither count as a miss nor wait for the guard.
+  if (isAutoPath(pathname)) {
     return pageResponse(renderNotFound(slug), 404);
   }
 
   const now = Date.now();
+  const cache = defaultCache();
+  const key = await guardKey(c.env, c.req.raw);
+  const blocked = (until: number) =>
+    pageResponse(renderAttemptLimit(slug), 429, { 'Retry-After': String(secondsUntil(until, now)) });
+
+  // A miss answers 404, or 429 when it is the one that goes over the limit.
+  const miss = async () => {
+    const until = key ? await recordMiss(c.env, key, now, cache, c.executionCtx) : null;
+    return until ? blocked(until) : pageResponse(renderNotFound(slug), 404);
+  };
+
+  const inMemory = key ? blockedInMemory(key, now) : null;
+  if (inMemory) return blocked(inMemory);
+
+  // A path that cannot be a slug is answered straight away, so junk traffic
+  // never reaches the database. It is still a miss.
+  if (!isValidSlugPath(slug)) {
+    const until = key ? await blockedInCache(key, now, cache) : null;
+    return until ? blocked(until) : miss();
+  }
+
   const today = utcDayStart(now);
 
-  let row: LookupRow | null;
-  try {
-    row = await c.env.DB.prepare(LOOKUP).bind(slug, today).first<LookupRow>();
-  } catch (error) {
-    console.error('link lookup failed', error);
+  // The block marker and the slug lookup run side by side, so a hit pays no
+  // extra latency for the guard. A block wins over whatever the lookup found:
+  // nothing is logged or counted for a blocked request.
+  const [until, lookup] = await Promise.all([
+    key ? blockedInCache(key, now, cache) : Promise.resolve(null),
+    c.env.DB.prepare(LOOKUP)
+      .bind(slug, today)
+      .first<LookupRow>()
+      .then(
+        (row) => ({ row }),
+        (error: unknown) => ({ error }),
+      ),
+  ]);
+  if (until) return blocked(until);
+
+  if ('error' in lookup) {
+    console.error('link lookup failed', lookup.error);
     return pageResponse(renderUnavailable(slug), 503);
   }
 
+  const row = lookup.row;
   if (!row) {
-    return pageResponse(renderNotFound(slug), 404);
+    return miss();
   }
 
   if (!isServable(row.is_active === 1, row.expires_at, now)) {

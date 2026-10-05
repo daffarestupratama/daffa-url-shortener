@@ -1,0 +1,12 @@
+# Copy this file to .dev.vars in the same folder. .dev.vars is gitignored.
+# Local development only. Production values are set as Cloudflare secrets.
+
+# HMAC key for the slug guessing guard. The guard counts misses per visitor
+# address, and this key turns the address into a value that cannot be
+# reversed before it reaches the Rate Limiting binding or the Cache API. Any
+# random text works locally. Production needs its own long random value.
+# Without it the guard stays off and the redirector serves every request.
+RATE_LIMIT_SECRET=local-development-miss-guard-secret
+
+# The production secret is set once from the repository root, never stored here:
+#   npx wrangler secret put RATE_LIMIT_SECRET -c apps/redirector/wrangler.jsonc

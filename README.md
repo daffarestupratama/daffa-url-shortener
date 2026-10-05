@@ -35,14 +35,28 @@ The public page never loads dashboard code, and the dashboard never loads public
 ### Redirect flow
 
 1. The path is lowercased and stripped of a trailing slash. Any path that fails the slug pattern receives a 404 without a database query.
-2. One indexed D1 lookup finds the link.
-3. An active link receives a 302 with a `no-store, private` Cache-Control header, so browsers never cache the redirect and every visit stays countable.
-4. Click logging runs in `ctx.waitUntil` after the response, so logging never delays the redirect. HEAD requests are not logged.
-5. Inactive or expired links receive 410, unknown slugs receive 404, and database failures receive 503.
+2. The slug guessing guard checks whether the visitor's network is blocked, in parallel with step 3, so a click waits for nothing extra.
+3. One indexed D1 lookup finds the link.
+4. An active link receives a 302 with a `no-store, private` Cache-Control header, so browsers never cache the redirect and every visit stays countable.
+5. Click logging runs in `ctx.waitUntil` after the response, so logging never delays the redirect. HEAD requests are not logged.
+6. Inactive or expired links receive 410, unknown slugs receive 404, and database failures receive 503. A blocked network receives 429 for every slug, before anything is logged or counted.
 
 Incoming query strings are ignored. The redirect always points to the stored destination exactly as saved.
 
 A public link never redirects straight away. It serves a notice page with the destination and a Continue link, and counts the visit in counters only (link total, link today, shared daily budget), without a `clicks` row. After 500 clicks of one link in a UTC day, or 20.000 clicks of all public links together, it answers 429 with `Retry-After` until 00:00 UTC (07:00 WIB).
+
+### Slug guessing guard
+
+Guessing slugs is the only way to find a private link, so the redirector slows guessing down without touching legitimate clicks (`apps/redirector/src/guard.ts`).
+
+- Only misses count, meaning requests that end in the 404 page, for unknown slugs and for paths that fail the slug pattern, by GET or HEAD. A click on an existing link never counts, so many real visitors behind one mobile carrier address (CGNAT) are never limited.
+- A 410 does not count. It reveals that a slug exists but never its destination, and an expired link printed on a poster or an event QR code can be opened by many people behind one address at once.
+- The 429 daily limit pages, the 503 page, `/`, `/favicon.ico`, `/robots.txt`, other methods, and paths browsers and crawlers request by themselves (`/apple-touch-icon*.png`, `/.well-known/*`, `/sitemap.xml`, `/ads.txt`, `/site.webmanifest`, and similar) never count. Safari asks for the touch icons on every page it shows.
+- A network is an IPv4 address or an IPv6 /64, the same rule as the public creation limit (`shared/ip.ts`). It reaches the Workers Rate Limiting binding `MISS_LIMITER` only as an HMAC-SHA-256 keyed with the redirector secret `RATE_LIMIT_SECRET`, so no address is stored or sent anywhere.
+- The limit is 10 misses per 60 seconds per network. The eleventh miss and every later request from that network, valid slugs included, receive the 429 attempt limit page with `Retry-After` for 60 seconds. `/`, `/favicon.ico`, and `/robots.txt` stay open.
+- The binding has no read only check, so a refused miss leaves a block marker in two places. One is a map in the memory of the isolate. The other is an empty entry in the Cache API of the data center, keyed by the HMAC and expiring after 60 seconds. The cache lookup runs in parallel with the D1 slug lookup, so a click pays no extra latency, and only junk paths without a lookup wait about a millisecond for it. Nothing is written to D1.
+- Every failure fails open. A missing secret, a binding error, or a cache error lets the request through normally and is logged once per isolate.
+- Counters and markers are per Cloudflare location and eventually consistent. The guard turns thousands of guesses per second into about 10 per one or two minutes for one network, but a guesser with many networks or locations is only slowed, not stopped. Generated six character slugs (32 to the power of 6, about 1,07 billion) stay out of reach either way. Short custom slugs gain the most.
 
 ### Public link creation
 
@@ -68,7 +82,8 @@ Timestamp, full IP address from `CF-Connecting-IP`, raw User-Agent, bot flag, co
 - The free plan allows 10 ms of CPU per request. The redirect path never parses User-Agents and detects bots with a single regular expression test.
 - User-Agent parsing, charts, and QR generation run in the browser. The API returns grouped raw data.
 - Aggregations run in SQL against two indexes on `clicks`. `npm run explain` confirms that no query scans the full `clicks` table, and that the redirector, the public endpoint, the lists, moderation, and the cron reach every stored table through an index.
-- Visitor pages are single HTML documents with inline CSS, no JavaScript, no web fonts, and a hard limit of 3 KB. The HTML shell of `link.daffa.me` is held to the same limit.
+- Visitor pages are single HTML documents with inline CSS, no JavaScript, no web fonts, and a hard limit of 3 KB. They cover 404 not found, 410 gone, 503 unavailable, the two 429 pages of the public link daily limits, the 429 attempt limit page of the slug guessing guard, and the 200 notice of public links. The HTML shell of `link.daffa.me` is held to the same limit.
+- The slug guessing guard adds no network wait. The Rate Limiting binding counts in memory at the location, and its block marker is read in parallel with the D1 lookup.
 - The public page loads the boot entry, the shared primitives, and its own chunk, 88.8 KB of JavaScript and CSS after gzip on 3 Oct 2026, most of it React. `npm run check:bundle` fails above a budget of 98 KB. The chain hero is plain CSS, without an animation library, and shows a static frame under `prefers-reduced-motion`.
 - The links list loads 25 rows at a time. An IntersectionObserver requests the next page before the end of the list scrolls into view, and a Load More button does the same by keyboard. Rows are merged by id, so a row never appears twice.
 
@@ -78,6 +93,7 @@ Timestamp, full IP address from `CF-Connecting-IP`, raw User-Agent, bot flag, co
 - The Worker verifies the Access JWT from `Cf-Access-Jwt-Assertion` on every `/api/admin` request with `jose` against the team JWKS, checking signature (RS256 only), audience, issuer, and expiry. Missing configuration fails closed with a 500.
 - Every POST, PATCH, and DELETE request, owner or public, requires the origin `https://link.daffa.me` and a JSON content type as CSRF protection.
 - Public creation is protected by Turnstile, hourly limits, and the blocked domains list. Public endpoints never return owner data, tags, other links, or counters.
+- `daffa.me` slows down slug guessing with the guard described under Slug guessing guard. It needs no WAF rule, since the single rate limiting rule of the Free plan matches on path only and would also throttle `cms.daffa.me`, `odoo.daffa.me`, and `link.daffa.me`.
 - The `workers.dev` route and preview URLs of the dashboard are disabled, so Access cannot be bypassed.
 - `apps/dashboard/public/_headers` sets `X-Frame-Options DENY`, `frame-ancestors 'none'`, `nosniff`, and a strict referrer policy on static assets, and `X-Robots-Tag: noindex` on `/dashboard`. API answers carry `Cache-Control: no-store` and `X-Robots-Tag: noindex`.
 - A local bypass exists only when `DEV_AUTH_BYPASS=true` is set in `.dev.vars` and the request host is `localhost` or `127.0.0.1`. It skips Access, accepts the local origin for CSRF, and accepts the hostnames that Turnstile test keys report (`localhost`, and `example.com` as observed for the test secret).
@@ -106,10 +122,12 @@ The client router and the User-Agent parser are hand written to keep the bundle 
 ├── apps/
 │   ├── redirector/          Worker for daffa.me
 │   │   ├── src/index.ts     routes and redirect logic
+│   │   ├── src/guard.ts     slug guessing guard (misses, Rate Limiting binding, block marker)
 │   │   ├── src/log.ts       click insert inside waitUntil
 │   │   ├── src/pages.ts     visitor pages and the public link notice
 │   │   ├── src/sql.ts       every redirector statement
-│   │   └── wrangler.jsonc
+│   │   ├── wrangler.jsonc   D1 binding and the MISS_LIMITER rate limit binding
+│   │   └── .dev.vars.example
 │   └── dashboard/           Worker for link.daffa.me
 │       ├── src/worker/      Hono API (routes/ for admin and public), Access auth,
 │       │                    CSRF, Turnstile, rate limit buckets, cursors, cron,
@@ -247,8 +265,9 @@ Errors always follow the shape `{ "error": { "code", "message" } }`. A public `i
 
 1. Install dependencies with `npm install`.
 2. Copy `apps/dashboard/.dev.vars.example` to `apps/dashboard/.dev.vars` and keep `DEV_AUTH_BYPASS=true`. The file is ignored by git. It also holds the Cloudflare Turnstile test secret that always passes and a local `RATE_LIMIT_SECRET`.
-3. Run `npm run migrate:local` and `npm run seed:local`.
-4. Run `npm run dev`, then open `http://localhost:5173` for the public page, `http://localhost:5173/dashboard` for the dashboard, and `http://127.0.0.1:8787/{slug}` for redirects.
+3. Copy `apps/redirector/.dev.vars.example` to `apps/redirector/.dev.vars`. It holds a local `RATE_LIMIT_SECRET` for the slug guessing guard, which stays off without it. The file is ignored by git.
+4. Run `npm run migrate:local` and `npm run seed:local`.
+5. Run `npm run dev`, then open `http://localhost:5173` for the public page, `http://localhost:5173/dashboard` for the dashboard, and `http://127.0.0.1:8787/{slug}` for redirects.
 
 Notes for local work
 
@@ -302,6 +321,7 @@ The standard workflow is change locally, verify with `npm run check`, commit, th
 - Run `npm run migrate:remote` only when a new file appears in `migrations/`. Code or style changes never need a migration.
 - Wrangler commands for the dashboard must run inside the dashboard workspace, because the Vite plugin writes a redirected Wrangler config there during the build. Secrets are set with `npm exec -w @daffa/dashboard -- wrangler secret put NAME`.
 - The dashboard needs four production secrets. `ACCESS_TEAM_DOMAIN` holds the Zero Trust team domain without the scheme, `ACCESS_AUD` holds the Application Audience tag of the Access application, `TURNSTILE_SECRET` holds the secret key of the Turnstile widget, and `RATE_LIMIT_SECRET` holds a long random value that keys the visitor buckets.
+- The redirector needs one production secret, `RATE_LIMIT_SECRET`, a long random value of its own that keys the HMAC of the slug guessing guard. The owner sets it once with `npx wrangler secret put RATE_LIMIT_SECRET -c apps/redirector/wrangler.jsonc` before deploying the guard. Without it the guard stays off and logs an error. The Rate Limiting binding `MISS_LIMITER` uses `namespace_id` 1001, which must stay unique in the account.
 - The Turnstile site key is public and is built into `index.html` from `VITE_TURNSTILE_SITE_KEY` in `apps/dashboard/.env.production`. `npm run check:bundle` fails while that file still holds the placeholder or any Turnstile test key.
 - If a fresh dashboard deploy serves a blank or broken page, deploying again without changes resolves a known intermittent Vite plugin issue.
 
@@ -327,10 +347,11 @@ The standard workflow is change locally, verify with `npm run check`, commit, th
 - Workers and Pages, `daffa-dashboard`, Cron Events. The daily purge logs how many rows it deleted, and a failed run shows as an error.
 - D1, `daffa-links`, Overview tab. Rows read and rows written should stay far below the free plan limits.
 - Most redirector traffic from unfamiliar regions comes from automated scanners and link preview crawlers. Invalid paths are answered without a database query.
+- Workers and Pages, `daffa-redirector`, Logs. A line starting with `slug guard` means the guard failed open, for a missing `RATE_LIMIT_SECRET`, a missing binding, or a binding or cache error. Each kind appears at most once per isolate.
 
 ## Maintenance notes
 
-- The worst case 404 visitor page sits about 50 bytes below the 3 KB limit. Any new content on visitor pages requires savings elsewhere.
+- The worst case 404 visitor page sits about 50 bytes below the 3 KB limit, and the attempt limit page about 55 bytes. Any new content on visitor pages requires savings elsewhere.
 - UI copy follows a formal descriptive tone, avoids personal pronouns, and never uses em dashes, en dashes, or semicolons. `npm run check:copy` enforces the punctuation rule.
 - Every color lives in `apps/dashboard/src/client/styles/tokens.css` and `shared/tokens.ts`, and a unit test keeps both files identical. `npm run check:tokens` rejects hard coded colors in client source.
 - `design/` is a read only reference. Design changes are exported again from Claude Design and replace the folder in a dedicated commit.

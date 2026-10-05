@@ -190,8 +190,19 @@ async function awayFromHourEdge() {
   }
 }
 
+/**
+ * A request to the redirector. The slug guessing guard counts 404s per
+ * address, and every smoke request would otherwise share 127.0.0.1, so each
+ * one comes from a random TEST-NET-1 address (192.0.2.0/24) unless the caller
+ * names one. Cloudflare's edge always overwrites CF-Connecting-IP, and
+ * wrangler dev passes it through, which the guard section relies on.
+ */
+function redirectFetch(path, { method = 'GET', ip = `192.0.2.${randomInt(1, 255)}` } = {}) {
+  return fetch(`${REDIRECT}${path}`, { method, redirect: 'manual', headers: { 'CF-Connecting-IP': ip } });
+}
+
 async function redirectStatus(slug) {
-  const response = await fetch(`${REDIRECT}/${slug}`, { redirect: 'manual' });
+  const response = await redirectFetch(`/${slug}`);
   return { status: response.status, location: response.headers.get('location') };
 }
 
@@ -591,6 +602,7 @@ async function main() {
     const redirectAfter = await redirectStatus(slugA);
     check('the deleted slug is a 404 at the redirector', redirectAfter.status === 404, `status ${redirectAfter.status}`);
     await publicLinks();
+    await slugGuard();
   }
 
   await pagination();
@@ -724,8 +736,93 @@ async function countersAfter(slug, ready) {
   return row;
 }
 
+/**
+ * The slug guessing guard: 10 misses (404s) per address per 60 seconds, then
+ * 60 seconds of 429 for every request from that address. Each part uses fresh
+ * TEST-NET-2 or documentation IPv6 addresses drawn for this run, so a run that
+ * repeats within a minute is not caught by the block of the one before.
+ */
+async function slugGuard() {
+  section('Slug guessing guard at the redirector');
+  // A random documentation /64 per part: 2^32 of them, so two runs never meet.
+  const hex = () => randomInt(1, 0x10000).toString(16);
+  const freshIp = () => `2001:db8:${hex()}:${hex()}::1`;
+  const status = async (path, ip, method = 'GET') => (await redirectFetch(path, { ip, method })).status;
+  const misses = (count, ip, label = 'miss') =>
+    Promise.all(Array.from({ length: count }, (_, i) => status(i % 2 ? `/${RUN}-${label}-${i}` : `/${label}-${i}.php`, ip)));
+
+  // The guesser is IPv4, so that path is covered too. Only it can repeat
+  // between runs, with a chance of 1 in 254.
+  const guesser = `198.51.100.${randomInt(1, 255)}`;
+  const first = await misses(10, guesser);
+  check('ten misses from one address all answer 404', first.every((code) => code === 404), first.join());
+  const over = await redirectFetch(`/${RUN}-one-more`, { ip: guesser });
+  const overBody = await over.text();
+  const retry = Number(over.headers.get('retry-after'));
+  if (
+    !check(
+      'the eleventh answers 429 with the attempt limit page, Retry-After, and no-store',
+      over.status === 429 &&
+        retry >= 1 &&
+        retry <= 60 &&
+        over.headers.get('cache-control') === 'no-store, private' &&
+        overBody.includes('Too many unknown links'),
+      `status ${over.status}, Retry-After ${retry}`,
+    )
+  ) {
+    console.log('  The guard is off without RATE_LIMIT_SECRET. Copy apps/redirector/.dev.vars.example to');
+    console.log('  apps/redirector/.dev.vars and restart npm run dev.');
+  }
+
+  const before = await counters('cv');
+  const publicBefore = await counters('x7kq2m');
+  check('a valid private slug from that address answers 429 as well', (await status('/cv', guesser)) === 429);
+  check('so does a HEAD on it', (await status('/cv', guesser, 'HEAD')) === 429);
+  check('and a public link', (await status('/x7kq2m', guesser)) === 429);
+  await sleep(500);
+  const after = await counters('cv');
+  const publicAfter = await counters('x7kq2m');
+  check(
+    'a blocked request logs no click and moves no public counter',
+    after?.logged === before?.logged && publicAfter?.click_total === publicBefore?.click_total,
+    `${before?.logged} then ${after?.logged}, ${publicBefore?.click_total} then ${publicAfter?.click_total}`,
+  );
+  check(
+    'the apex, robots.txt and favicon.ico stay open for that address',
+    (await status('/', guesser)) === 301 && (await status('/robots.txt', guesser)) === 200 && (await status('/favicon.ico', guesser)) === 204,
+  );
+  check('another address is not affected', (await status('/cv', freshIp(), 'HEAD')) === 302);
+
+  const visitor = freshIp();
+  const hits = await Promise.all(Array.from({ length: 25 }, () => status('/cv', visitor, 'HEAD')));
+  check('25 hits from one address all redirect', hits.every((code) => code === 302), hits.join());
+  check('hits never count, so a miss after them is still a 404', (await status(`/${RUN}-after-hits`, visitor)) === 404);
+
+  const expired = freshIp();
+  const gone = await Promise.all(Array.from({ length: 15 }, () => status('/slide-pydata', expired)));
+  check('15 requests to an inactive link all answer 410', gone.every((code) => code === 410), gone.join());
+  check('a 410 never counts as a miss', (await status(`/${RUN}-after-gone`, expired)) === 404);
+
+  const safari = freshIp();
+  const icons = await Promise.all(
+    Array.from({ length: 15 }, (_, i) => status(i % 2 ? '/apple-touch-icon.png' : '/apple-touch-icon-precomposed.png', safari)),
+  );
+  check('15 touch icon requests answer 404', icons.every((code) => code === 404), icons.join());
+  check('automatic browser paths never count as misses', (await status(`/${RUN}-after-icons`, safari)) === 404);
+
+  const block = `2001:db8:${hex()}:${hex()}`;
+  const six = await misses(6, `${block}::a`, 'v6a');
+  const five = await misses(4, `${block}:ffff::b`, 'v6b');
+  check('misses from two addresses in one IPv6 /64 add up', [...six, ...five].every((code) => code === 404));
+  check(
+    'the eleventh miss of the /64 answers 429, from yet another address in it',
+    (await status(`/${RUN}-v6-over`, `${block}:1:2:3:4`)) === 429,
+  );
+  check('a neighbouring /64 is not affected', (await status('/cv', `2001:db8:ffff:ffff::1`, 'HEAD')) === 302);
+}
+
 async function visit(slug, method = 'GET') {
-  const response = await fetch(`${REDIRECT}/${slug}`, { method, redirect: 'manual' });
+  const response = await redirectFetch(`/${slug}`, { method });
   return { status: response.status, headers: response.headers, body: await response.text() };
 }
 

@@ -1,42 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { ipBucket, rateLimitSubject } from './ratelimit';
+import { ipBucket } from './ratelimit';
 
-describe('rateLimitSubject', () => {
-  it('keeps an IPv4 address as it is', () => {
-    expect(rateLimitSubject('203.0.113.7')).toBe('203.0.113.7');
-    expect(rateLimitSubject(' 203.0.113.7 ')).toBe('203.0.113.7');
-  });
-
-  it('reads an IPv4 mapped IPv6 address as IPv4', () => {
-    expect(rateLimitSubject('::ffff:203.0.113.7')).toBe('203.0.113.7');
-  });
-
-  it('reduces IPv6 to its /64, so hopping inside the block does not reset the limit', () => {
-    const subject = '2001:db8:85a3:12::/64';
-    expect(rateLimitSubject('2001:db8:85a3:12::1')).toBe(subject);
-    expect(rateLimitSubject('2001:0DB8:85a3:0012:ffff:1:2:3')).toBe(subject);
-    expect(rateLimitSubject('2001:db8:85a3:12:abcd::9%eth0')).toBe(subject);
-    expect(rateLimitSubject('2001:db8:85a3:13::1')).not.toBe(subject);
-  });
-
-  it('expands :: at any position', () => {
-    expect(rateLimitSubject('::1')).toBe('0:0:0:0::/64');
-    expect(rateLimitSubject('2001:db8::')).toBe('2001:db8:0:0::/64');
-    expect(rateLimitSubject('64:ff9b::192.0.2.1')).toBe('64:ff9b:0:0::/64');
-  });
-
-  it('puts a missing address into one shared bucket', () => {
-    expect(rateLimitSubject(undefined)).toBe('unknown');
-    expect(rateLimitSubject(null)).toBe('unknown');
-    expect(rateLimitSubject('  ')).toBe('unknown');
-  });
-
-  it('keeps a value it cannot parse as it is rather than guessing', () => {
-    expect(rateLimitSubject('1:2:3::4::5')).toBe('1:2:3::4::5');
-  });
-});
+// rateLimitSubject and the HMAC live in shared/ip.ts, tested in shared/ip.test.ts.
 
 describe('ipBucket', () => {
+  // Recorded before rateLimitSubject and the HMAC moved to shared/ip.ts, so the
+  // move provably kept every bucket name the same.
+  it('keeps the bucket names it had before the move to shared', async () => {
+    expect(await ipBucket('secret', '203.0.113.7')).toBe('ip:0e2l-FQ2rS1eJYKLe8d8opDWx5epqyR5MnrsN_o-CdM');
+    expect(await ipBucket('secret', '2001:db8:1:2::a')).toBe('ip:zX0q2UThjoXoIo5FtOCA3L_ZjmbRTJW7wl_fzNwOMbE');
+  });
+
   it('is deterministic for one secret and address', async () => {
     expect(await ipBucket('secret', '203.0.113.7')).toBe(await ipBucket('secret', '203.0.113.7'));
   });

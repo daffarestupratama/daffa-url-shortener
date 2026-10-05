@@ -8,3 +8,4 @@ export * from './tokens';
 export * from './time';
 export * from './domains';
 export * from './public';
+export * from './ip';
