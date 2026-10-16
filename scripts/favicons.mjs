@@ -11,6 +11,10 @@ import { encodePng } from './png.mjs';
  * colors read from shared/tokens.ts so they cannot drift from the design.
  * Rasterizing is done here and PNG encoding in png.mjs with node:zlib, so no
  * image library is needed. Rerun with `npm run icons` after a token change.
+ *
+ * The redirector imports favicon.ico and apple-touch-icon.png from this folder
+ * as Data modules (apps/redirector/src/icons.ts), so daffa.me serves the same
+ * files. Both Workers pick up a change at their next deploy.
  */
 
 const { COLORS } = await importTs('shared/tokens.ts');
@@ -144,3 +148,4 @@ await writeFile(path.join(OUT, 'apple-touch-icon.png'), touch);
 console.log(`Wrote apps/dashboard/public/favicon.svg          ${svg.length} bytes`);
 console.log(`Wrote apps/dashboard/public/favicon.ico          ${favicon.length} bytes (16 and 32)`);
 console.log(`Wrote apps/dashboard/public/apple-touch-icon.png ${touch.length} bytes (180)`);
+console.log('The redirector serves favicon.ico and apple-touch-icon.png from these files. Deploy both Workers.');

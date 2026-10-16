@@ -21,6 +21,7 @@ import {
   reportOnce,
   type GuardEnv,
 } from './guard';
+import { ICONS, iconResponse } from './icons';
 import { logClick } from './log';
 import {
   pageResponse,
@@ -92,8 +93,11 @@ app.on(['GET', 'HEAD'], '/', (c) =>
   c.newResponse(null, 301, { Location: HOME, 'Cache-Control': NO_STORE }),
 );
 
-/** Answered without touching D1. */
-app.on(['GET', 'HEAD'], '/favicon.ico', (c) => c.newResponse(null, 204));
+/** Answered from memory, before the guard and without touching D1. */
+app.on(['GET', 'HEAD'], Object.keys(ICONS), (c) => {
+  const icon = ICONS[new URL(c.req.url).pathname];
+  return icon ? iconResponse(icon) : c.notFound();
+});
 
 app.on(['GET', 'HEAD'], '/robots.txt', (c) =>
   c.newResponse(ROBOTS, 200, { 'Content-Type': 'text/plain; charset=utf-8' }),

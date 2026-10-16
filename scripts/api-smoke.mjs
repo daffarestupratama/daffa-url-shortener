@@ -627,6 +627,7 @@ async function main() {
 
   await cron();
   await staticFiles();
+  await redirectorIcons();
   await clientRoutes();
 }
 
@@ -707,6 +708,27 @@ async function clientRoutes() {
     );
   }
   const root = await fetch(`${DASHBOARD}/`, { headers: { Accept: 'text/html' } }).then((r) => r.text());
+  check(
+    'the document describes the page and names its builder',
+    /<meta\s+name="description"\s+content="Turn any long URL[^"]*Built by Daffa Ilham Restupratama\."/.test(root),
+  );
+  const ld = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(root)?.[1];
+  let data = null;
+  try {
+    data = ld ? JSON.parse(ld) : null;
+  } catch {
+    data = null;
+  }
+  check(
+    'the document carries WebApplication JSON-LD with a free offer and the builder as author',
+    data?.['@type'] === 'WebApplication' &&
+      data.url === 'https://link.daffa.me/' &&
+      data.offers?.price === '0' &&
+      data.author?.['@type'] === 'Person' &&
+      data.author.name === 'Daffa Ilham Restupratama' &&
+      data.author.url === 'https://daffarestupratama.com/',
+    ld ? ld.slice(0, 80) : 'no JSON-LD block',
+  );
   check(
     'the document carries the development Turnstile site key',
     root.includes('<meta name="turnstile-site-key" content="1x00000000000000000000AA" />'),
@@ -836,8 +858,12 @@ async function slugGuard() {
       `${before?.logged} then ${after?.logged}, ${publicBefore?.click_total} then ${publicAfter?.click_total}`,
     );
     check(
-      'the apex, robots.txt and favicon.ico stay open for that address',
-      (await status('/', guesser)) === 301 && (await status('/robots.txt', guesser)) === 200 && (await status('/favicon.ico', guesser)) === 204,
+      'the apex, robots.txt and the icons stay open for that address',
+      (await status('/', guesser)) === 301 &&
+        (await status('/robots.txt', guesser)) === 200 &&
+        (await status('/favicon.ico', guesser)) === 200 &&
+        (await status('/apple-touch-icon.png', guesser)) === 200 &&
+        (await status('/apple-touch-icon-precomposed.png', guesser, 'HEAD')) === 200,
     );
     check('another address is not affected', (await status('/cv', freshIp(), 'HEAD')) === 302);
 
@@ -898,8 +924,10 @@ async function slugGuard() {
     const icons = await Promise.all(
       Array.from({ length: 15 }, (_, i) => status(i % 2 ? '/apple-touch-icon.png' : '/apple-touch-icon-precomposed.png', safari)),
     );
-    check('15 touch icon requests answer 404', icons.every((code) => code === 404), icons.join());
-    check('automatic browser paths never count as misses', (await status(`/${RUN}-after-icons`, safari)) === 404);
+    check('15 requests for the two served touch icons answer 200', icons.every((code) => code === 200), icons.join());
+    const sized = await Promise.all(Array.from({ length: 15 }, () => status('/apple-touch-icon-120x120.png', safari)));
+    check('15 requests for a sized touch icon answer 404', sized.every((code) => code === 404), sized.join());
+    check('icons and automatic browser paths never count as misses', (await status(`/${RUN}-after-icons`, safari)) === 404);
 
     const block = `2001:db8:${hex()}:${hex()}`;
     await keyOf(`${block}::a`);
@@ -1452,6 +1480,43 @@ async function cron() {
       `DELETE FROM rate_limits WHERE bucket LIKE '${PREFIX}%';` +
         `DELETE FROM guard_blocks WHERE key LIKE '${PREFIX}%';` +
         (recentBefore ? '' : `DELETE FROM public_click_budget WHERE day = ${recentDay};`),
+    );
+  }
+}
+
+/**
+ * The redirector serves the dashboard's icons, imported from
+ * apps/dashboard/public as Data modules. Each answer must equal the file on
+ * disk and what the dashboard itself serves, so the two Workers share one
+ * source.
+ */
+async function redirectorIcons() {
+  section('Icons at the redirector');
+  const cases = [
+    ['/favicon.ico', 'favicon.ico', 'image/x-icon'],
+    ['/apple-touch-icon.png', 'apple-touch-icon.png', 'image/png'],
+    ['/apple-touch-icon-precomposed.png', 'apple-touch-icon.png', 'image/png'],
+  ];
+  for (const [iconPath, file, type] of cases) {
+    const onDisk = readFileSync(path.join(ROOT, 'apps/dashboard/public', file));
+    const response = await redirectFetch(iconPath);
+    const body = Buffer.from(await response.arrayBuffer());
+    check(
+      `${iconPath} answers 200 with ${type}, a week of cache, and nosniff`,
+      response.status === 200 &&
+        response.headers.get('content-type') === type &&
+        response.headers.get('cache-control') === 'public, max-age=604800' &&
+        response.headers.get('x-content-type-options') === 'nosniff',
+      `status ${response.status}, ${response.headers.get('content-type')}, ${response.headers.get('cache-control')}`,
+    );
+    check(`${iconPath} is apps/dashboard/public/${file} byte for byte`, body.equals(onDisk), `${body.length} vs ${onDisk.length} bytes`);
+    const fromDashboard = Buffer.from(await (await fetch(`${DASHBOARD}/${file}`)).arrayBuffer());
+    check(`${iconPath} equals the dashboard's /${file}`, body.equals(fromDashboard));
+    const head = await redirectFetch(iconPath, { method: 'HEAD' });
+    check(
+      `HEAD ${iconPath} answers 200 with the same type and length`,
+      head.status === 200 && head.headers.get('content-type') === type && head.headers.get('content-length') === String(onDisk.length),
+      `status ${head.status}, length ${head.headers.get('content-length')}`,
     );
   }
 }

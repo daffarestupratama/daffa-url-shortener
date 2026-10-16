@@ -14,7 +14,7 @@ One repository holds two Cloudflare Workers that share one D1 database.
 
 | Worker | Hostname | Role |
 |---|---|---|
-| `daffa-redirector` | `daffa.me` | Looks up the slug, redirects private links and serves the notice page of public links, logs the click, and serves the 404, 410, 429, and 503 visitor pages |
+| `daffa-redirector` | `daffa.me` | Looks up the slug, redirects private links and serves the notice page of public links, logs the click, serves the 404, 410, 429, and 503 visitor pages, and serves the dashboard favicons on `daffa.me` |
 | `daffa-dashboard` | `link.daffa.me` | Hono JSON API under `/api/admin` (owner) and `/api/public` (anonymous), a daily cron, and a React single page application served as static assets for `/` (public page) and `/dashboard` |
 
 The split isolates the public redirect path. A faulty dashboard deploy cannot break published links, and the SPA fallback of the dashboard never intercepts slugs. The root `daffa.me` without a slug redirects to `daffarestupratama.com`. The former dashboard hostname `shorten.daffa.me` is retired without a redirect.
@@ -43,6 +43,8 @@ The public page never loads dashboard code, and the dashboard never loads public
 
 Incoming query strings are ignored. The redirect always points to the stored destination exactly as saved.
 
+`/favicon.ico`, `/apple-touch-icon.png`, and `/apple-touch-icon-precomposed.png` are answered before step 1 with the icons `npm run icons` writes for the dashboard (`apps/redirector/src/icons.ts`). The visitor pages carry no icon tag, since browsers request `/favicon.ico` by themselves and Safari asks for the touch icons. The redirector imports the files from `apps/dashboard/public` as Wrangler Data modules, so both Workers serve one set of files and no copy can drift. Each answer carries the matching `Content-Type`, `Content-Length`, `Cache-Control: public, max-age=604800`, and `nosniff`, for GET and HEAD.
+
 A public link never redirects straight away. It serves a notice page with the destination and a Continue link, and counts the visit in counters only (link total, link today, shared daily budget), without a `clicks` row. After 500 clicks of one link in a UTC day, or 20.000 clicks of all public links together, it answers 429 with `Retry-After` until 00:00 UTC (07:00 WIB).
 
 ### Slug guessing guard
@@ -51,10 +53,10 @@ Guessing slugs is the only way to find a private link, so the redirector slows g
 
 - Only misses count, meaning requests that end in the 404 page, for unknown slugs and for paths that fail the slug pattern, by GET or HEAD. A click on an existing link never counts, so many real visitors behind one mobile carrier address (CGNAT) are never limited.
 - A 410 does not count. It reveals that a slug exists but never its destination, and an expired link printed on a poster or an event QR code can be opened by many people behind one address at once.
-- The 429 daily limit pages, the 503 page, `/`, `/favicon.ico`, `/robots.txt`, other methods, and paths browsers and crawlers request by themselves (`/apple-touch-icon*.png`, `/.well-known/*`, `/sitemap.xml`, `/ads.txt`, `/site.webmanifest`, and similar) never count. Safari asks for the touch icons on every page it shows.
+- The 429 daily limit pages, the 503 page, `/`, the three icons, `/robots.txt`, other methods, and paths browsers and crawlers request by themselves (sized touch icons such as `/apple-touch-icon-120x120.png`, `/.well-known/*`, `/sitemap.xml`, `/ads.txt`, `/site.webmanifest`, and similar) never count. Safari asks for the touch icons on every page it shows. The icons answer 200, and the other automatic paths answer the 404 page.
 - A network is an IPv4 address or an IPv6 /64, the same rule as the public creation limit (`shared/ip.ts`). It reaches the Workers Rate Limiting binding `MISS_LIMITER` only as an HMAC-SHA-256 keyed with the redirector secret `RATE_LIMIT_SECRET`, so no address is stored or sent anywhere.
 - The limit is 10 misses per 60 seconds per network. Two detectors count them, and the first to go over trips the guard. A counter in the memory of the isolate counts before anything is awaited, so a burst of parallel misses handled by one isolate trips on the eleventh. The binding is shared by the isolates of one location but is eventually consistent, and catches paced misses that different isolates handle. The memory counter keeps working when the binding is missing or fails.
-- The eleventh miss and every later request from that network, valid slugs included, receive the 429 attempt limit page. `Retry-After` is 300 seconds on the trip, and the time left on the block afterwards. `/`, `/favicon.ico`, and `/robots.txt` stay open.
+- The eleventh miss and every later request from that network, valid slugs included, receive the 429 attempt limit page. `Retry-After` is 300 seconds on the trip, and the time left on the block afterwards. `/`, the three icons, and `/robots.txt` stay open.
 - A trip blocks at three levels:
   - **Isolate memory**, a map with the end of the block, for 60 seconds.
   - **Cache API**, an empty entry in the data center keyed by the HMAC, for 60 seconds. Every isolate at that location sees it.
@@ -91,6 +93,7 @@ Timestamp, full IP address from `CF-Connecting-IP`, raw User-Agent, bot flag, co
 - User-Agent parsing, charts, and QR generation run in the browser. The API returns grouped raw data.
 - Aggregations run in SQL against two indexes on `clicks`. `npm run explain` confirms that no query scans the full `clicks` table, and that the redirector, the public endpoint, the lists, moderation, and the cron reach every stored table through an index.
 - Visitor pages are single HTML documents with inline CSS, no JavaScript, no web fonts, and a hard limit of 3 KB. They cover 404 not found, 410 gone, 503 unavailable, the two 429 pages of the public link daily limits, the 429 attempt limit page of the slug guessing guard, and the 200 notice of public links. The HTML shell of `link.daffa.me` is held to the same limit.
+- The icons of `daffa.me` are Data modules loaded once per isolate. An icon request copies at most 3.7 KB from memory, with no guard work and no D1 query.
 - The slug guessing guard adds no network wait. The Rate Limiting binding counts in memory at the location, its block marker is read in parallel with the D1 lookup, and the global block is a primary key lookup inside the same query. A miss writes nothing to D1. Only a trip writes, once per network per isolate per 5 minutes.
 - The public page loads the boot entry, the shared primitives, and its own chunk, 88.8 KB of JavaScript and CSS after gzip on 3 Oct 2026, most of it React. `npm run check:bundle` fails above a budget of 98 KB. The chain hero is plain CSS, without an animation library, and shows a static frame under `prefers-reduced-motion`.
 - The links list loads 25 rows at a time. An IntersectionObserver requests the next page before the end of the list scrolls into view, and a Load More button does the same by keyboard. Rows are merged by id, so a row never appears twice.
@@ -130,11 +133,13 @@ The client router and the User-Agent parser are hand written to keep the bundle 
 ├── apps/
 │   ├── redirector/          Worker for daffa.me
 │   │   ├── src/index.ts     routes and redirect logic
+│   │   ├── src/icons.ts     favicon and touch icons, imported from apps/dashboard/public
 │   │   ├── src/guard.ts     slug guessing guard (miss counters, block marker, global block)
 │   │   ├── src/log.ts       click insert inside waitUntil
 │   │   ├── src/pages.ts     visitor pages and the public link notice
 │   │   ├── src/sql.ts       every redirector statement
-│   │   ├── wrangler.jsonc   D1 binding and the MISS_LIMITER rate limit binding
+│   │   ├── wrangler.jsonc   D1 binding, the MISS_LIMITER rate limit binding, and the
+│   │   │                    Data rule for the icons
 │   │   └── .dev.vars.example
 │   └── dashboard/           Worker for link.daffa.me
 │       ├── src/worker/      Hono API (routes/ for admin and public), Access auth,
@@ -261,12 +266,12 @@ Errors always follow the shape `{ "error": { "code", "message" } }`. A public `i
 | `npm run check` | Typecheck, unit tests, visitor page and HTML shell size, copy audit, and token audit |
 | `npm test` | Unit tests only |
 | `npm run build:dashboard` | Builds the dashboard |
-| `npm run check:bundle` | Checks the dashboard build for dev only code, CDN URLs, headers, favicons, robots and sitemap, Open Graph tags and image, the Turnstile site key, the route split between the public page and the dashboard, and the size budget of the public page |
+| `npm run check:bundle` | Checks the dashboard build for dev only code, CDN URLs, headers, favicons and that the redirector imports the same files without a copy, robots and sitemap, Open Graph tags and image, the meta description and JSON-LD, the Turnstile site key, the route split between the public page and the dashboard, and the size budget of the public page |
 | `npm run explain` | Prints the query plan of every SQL statement and fails on a full scan of `clicks` or on any stored table scan in a case marked as index only |
 | `npm run smoke` | End to end API test against a running `npm run dev`, including the page by page walk of both dashboard tabs and every client route. Expects the `seed:local` data |
 | `npm run cron:local` | Fires the daily cron once against a running `npm run dev` |
 | `npm run db:counts` | Prints row counts of the local database |
-| `npm run icons` | Regenerates the favicons and the 1200x630 Open Graph image from the design tokens |
+| `npm run icons` | Regenerates the favicons and the 1200x630 Open Graph image from the design tokens. Both Workers serve the favicons, so a change needs both deploys |
 | `npm run migrate:remote` | Applies migrations to the production database |
 | `npm run deploy:redirect` | Deploys the redirector |
 | `npm run deploy:dashboard` | Builds and deploys the dashboard |
@@ -350,7 +355,7 @@ The standard workflow is change locally, verify with `npm run check`, commit, th
 
 ### Search engines
 
-`robots.txt` allows `/` and disallows `/dashboard` and `/api`, and `sitemap.xml` lists `https://link.daffa.me/`. The public page carries a title, a description, a canonical link, and Open Graph tags with `og.png`. `/dashboard` paths are excluded through `X-Robots-Tag: noindex` from `_headers`, and API answers send the same header.
+`robots.txt` allows `/` and disallows `/dashboard` and `/api`, and `sitemap.xml` lists `https://link.daffa.me/`. The public page carries a title, a description that names the builder, Daffa Ilham Restupratama, a canonical link, Open Graph tags with `og.png`, and structured data of type `WebApplication` in JSON-LD (name, URL, description, category, a free offer, and the builder as author). The dashboard routes share the same HTML shell, so they carry the same tags, but they are never indexed. `/dashboard` paths are excluded through `X-Robots-Tag: noindex` from `_headers`, and API answers send the same header.
 
 ## Monitoring
 
@@ -367,12 +372,12 @@ The standard workflow is change locally, verify with `npm run check`, commit, th
 - UI copy follows a formal descriptive tone, avoids personal pronouns, and never uses em dashes, en dashes, or semicolons. `npm run check:copy` enforces the punctuation rule.
 - Every color lives in `apps/dashboard/src/client/styles/tokens.css` and `shared/tokens.ts`, and a unit test keeps both files identical. `npm run check:tokens` rejects hard coded colors in client source.
 - `design/` is a read only reference. Design changes are exported again from Claude Design and replace the folder in a dedicated commit.
-- Chrome caches favicons aggressively. A new Incognito window shows icon changes immediately.
+- Chrome caches favicons aggressively. A new Incognito window shows icon changes immediately. `daffa.me` sends its icons with a one week cache, so a regenerated icon reaches every visitor within a week.
+- The HTML shell of `link.daffa.me` is 2.280 bytes, about 790 bytes below the 3 KB limit, measured by `npm run check:pages` on 16 Oct 2026.
 - `og.png` is generated by `scripts/og-image.mjs` with a small stroke font that only knows the glyphs of `/daffa.me`. New text on the image needs new glyphs there.
 
 ## Roadmap
 
-- Serve the dashboard favicon on the redirector visitor pages.
 - Clean up the legacy stack by removing the Strapi `short-link` collection, the `/api/s/:slug` route, and the nginx virtual host for `s.daffa.me`, then point the `s` DNS record to a dummy address.
 - Phase 2 covers a UTM builder, click limits, per link passwords, custom social previews, and device targeting.
 - Phase 3 covers an API with tokens, bulk CSV import, and periodic broken link checks. Access service tokens carry no email claim, so the JWT check needs adjustment at that stage.

@@ -14,9 +14,15 @@ import { ROOT } from './bundle.mjs';
  *   4. Flags are separate files, not inlined into JavaScript.
  *   5. Reports raw and gzip sizes, split into the initial load and lazy chunks.
  *   6. The favicons are present: favicon.svg, favicon.ico, apple-touch-icon.png.
+ *      The redirector serves the same ICO and PNG: dist matches
+ *      apps/dashboard/public byte for byte, apps/redirector/src/icons.ts imports
+ *      both from there through the Data rule, and no copy exists in the
+ *      redirector.
  *   7. Search engines: robots.txt and sitemap.xml are present, the public page
- *      carries no noindex but a canonical link and Open Graph tags, og.png is a
- *      1200x630 PNG, and _headers marks /dashboard as noindex.
+ *      carries no noindex but a canonical link and Open Graph tags, its meta
+ *      description names the builder, its WebApplication JSON-LD parses with
+ *      every expected field, og.png is a 1200x630 PNG, and _headers marks
+ *      /dashboard as noindex.
  *   8. Turnstile: no test site key is in the build, and index.html carries a
  *      real production site key, not the placeholder from .env.production.
  *   9. Route split, from the module map the build writes to
@@ -141,6 +147,30 @@ if (missingIcons.length) {
   if (!isIco) fail('favicon.ico is not an ICO file');
   else if (touchSize !== '180x180') fail(`apple-touch-icon.png is ${touchSize}, expected 180x180`);
   else pass('favicon.svg, favicon.ico and a 180x180 apple-touch-icon.png are present');
+
+  // The redirector serves the same two files, imported from apps/dashboard/public
+  // as Data modules. No copy may exist, so the two Workers can never drift.
+  const PUBLIC = path.join(ROOT, 'apps/dashboard/public');
+  const REDIRECTOR = path.join(ROOT, 'apps/redirector');
+  const iconProblems = [];
+  for (const [name, built] of [['favicon.ico', icoBytes], ['apple-touch-icon.png', touch]]) {
+    if (!built.equals(await readFile(path.join(PUBLIC, name)))) iconProblems.push(`dist ${name} differs from apps/dashboard/public`);
+  }
+  const iconsSource = await readFile(path.join(REDIRECTOR, 'src/icons.ts'), 'utf8');
+  for (const name of ['favicon.ico', 'apple-touch-icon.png']) {
+    if (!iconsSource.includes(`from '../../dashboard/public/${name}'`)) iconProblems.push(`icons.ts does not import ${name} from apps/dashboard/public`);
+  }
+  // Dot folders such as .wrangler hold build output of wrangler dev, never source.
+  const copies = (await readdir(REDIRECTOR, { recursive: true })).filter(
+    (file) => /\.(ico|png)$/i.test(file) && !String(file).split(/[\\/]/).some((part) => part === 'node_modules' || part.startsWith('.')),
+  );
+  if (copies.length) iconProblems.push(`icon copies in apps/redirector: ${copies.join(', ')}`);
+  const redirectorConfig = await readFile(path.join(REDIRECTOR, 'wrangler.jsonc'), 'utf8');
+  if (!/"type": "Data", "globs": \["\*\*\/\*\.ico", "\*\*\/\*\.png"\]/.test(redirectorConfig)) {
+    iconProblems.push('apps/redirector/wrangler.jsonc has no Data rule for .ico and .png');
+  }
+  if (iconProblems.length) fail(iconProblems.join('; '));
+  else pass('the redirector imports favicon.ico and apple-touch-icon.png from apps/dashboard/public, with no copy');
 }
 
 // 7: search engines and link previews.
@@ -178,6 +208,34 @@ for (const tag of ['og:title', 'og:description', 'og:url', 'og:image', 'twitter:
 }
 if (metaProblems.length) fail(`index.html has ${metaProblems.join(', ')}`);
 else pass('index.html is indexable, with a canonical link and Open Graph tags');
+
+const BUILDER = 'Daffa Ilham Restupratama';
+const description = /<meta\s+name="description"\s+content="([^"]*)"/.exec(html)?.[1] ?? '';
+const ldBlocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((match) => match[1]);
+const ldProblems = [];
+if (!description.includes(BUILDER)) ldProblems.push(`the meta description does not name ${BUILDER}`);
+if (ldBlocks.length !== 1) {
+  ldProblems.push(`${ldBlocks.length} JSON-LD blocks, expected 1`);
+} else {
+  let ld = null;
+  try {
+    ld = JSON.parse(ldBlocks[0]);
+  } catch {
+    ldProblems.push('JSON-LD does not parse');
+  }
+  if (ld) {
+    if (ld['@type'] !== 'WebApplication') ldProblems.push('@type is not WebApplication');
+    if (ld.url !== 'https://link.daffa.me/') ldProblems.push('url is not https://link.daffa.me/');
+    for (const field of ['name', 'description', 'applicationCategory']) if (!ld[field]) ldProblems.push(`no ${field}`);
+    if (ld.offers?.price !== '0') ldProblems.push('offers.price is not 0');
+    const author = ld.author ?? {};
+    if (author['@type'] !== 'Person' || author.name !== BUILDER || author.url !== 'https://daffarestupratama.com/') {
+      ldProblems.push(`author is not the Person ${BUILDER} at https://daffarestupratama.com/`);
+    }
+  }
+}
+if (ldProblems.length) fail(`index.html search metadata: ${ldProblems.join(', ')}`);
+else pass(`index.html names ${BUILDER} in its description and carries WebApplication JSON-LD`);
 
 const ogFile = path.join(DIST, 'og.png');
 if (!existsSync(ogFile)) {

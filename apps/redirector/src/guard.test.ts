@@ -212,12 +212,14 @@ describe('what counts as a miss', () => {
     expect(failing.limiter.calls()).toBe(0);
   });
 
-  it('never counts or blocks the apex, favicon, robots, automatic paths, or other methods', async () => {
+  it('never counts or blocks the apex, icons, robots, automatic paths, or other methods', async () => {
     const { request, limiter } = setup();
     expect((await request('/')).status).toBe(301);
-    expect((await request('/favicon.ico')).status).toBe(204);
+    for (const icon of ['/favicon.ico', '/apple-touch-icon.png', '/apple-touch-icon-precomposed.png']) {
+      expect((await request(icon)).status, icon).toBe(200);
+    }
     expect((await request('/robots.txt')).status).toBe(200);
-    for (const auto of ['/apple-touch-icon.png', '/apple-touch-icon-precomposed.png', '/apple-touch-icon-120x120.png', '/.well-known/security.txt', '/sitemap.xml', '/ads.txt']) {
+    for (const auto of ['/apple-touch-icon-120x120.png', '/apple-touch-icon-152x152-precomposed.png', '/.well-known/security.txt', '/sitemap.xml', '/ads.txt']) {
       expect((await request(auto)).status, auto).toBe(404);
     }
     expect((await request('/cv', undefined, 'POST')).status).toBe(405);
@@ -243,7 +245,9 @@ describe('blocking', () => {
     expect((await request('/x7kq2m')).status).toBe(429);
     expect(db.writes.length).toBe(writesBefore);
 
-    // The apex, favicon and robots stay open.
+    // The apex, the icons and robots stay open.
+    expect((await request('/favicon.ico')).status).toBe(200);
+    expect((await request('/apple-touch-icon.png')).status).toBe(200);
     expect((await request('/')).status).toBe(301);
     expect((await request('/robots.txt')).status).toBe(200);
   });

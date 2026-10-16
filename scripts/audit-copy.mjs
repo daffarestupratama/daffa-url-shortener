@@ -128,11 +128,37 @@ for (const file of clientFiles) {
   visit(source);
 }
 
+// Pass four: the copy search engines and link previews show from the HTML
+// shell of link.daffa.me, the title, every meta content, and the JSON-LD
+// description. Not visible on the page, but read by people in results.
+const shell = await readFile(path.join(ROOT, 'apps/dashboard/index.html'), 'utf8');
+const shellCopy = [
+  ...[...shell.matchAll(/<title>([^<]*)<\/title>/g)].map((match) => ['title', match[1]]),
+  ...[...shell.matchAll(/<meta\s+(?:name|property)="(description|og:title|og:description|og:image:alt)"\s+content="([^"]*)"/g)].map(
+    (match) => [match[1], match[2]],
+  ),
+];
+for (const [, json] of shell.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+  try {
+    shellCopy.push(['JSON-LD description', JSON.parse(json).description ?? '']);
+  } catch {
+    problems.push('apps/dashboard/index.html: JSON-LD does not parse');
+  }
+}
+for (const [name, text] of shellCopy) {
+  const where = `apps/dashboard/index.html ${name}`;
+  if (text.includes(EM_DASH)) problems.push(`${where} contains an em dash`);
+  if (text.includes(EN_DASH)) problems.push(`${where} contains an en dash`);
+  checkCopy(text, where);
+}
+
 if (problems.length > 0) {
   console.error('Copy audit failed:\n');
   for (const problem of problems) console.error(`  ${problem}`);
   process.exit(1);
 }
 
-console.log(`Copy audit passed. Checked ${RENDERED.length} rendered pages, all source files, and ${uiStrings} dashboard UI strings.`);
+console.log(
+  `Copy audit passed. Checked ${RENDERED.length} rendered pages, all source files, ${shellCopy.length} search texts of the HTML shell, and ${uiStrings} UI strings in all.`,
+);
 console.log('No em dashes, no en dashes, no semicolons in UI text, no first person pronouns.');

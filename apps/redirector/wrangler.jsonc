@@ -7,8 +7,13 @@
   // Custom domain, not a route pattern. Cloudflare manages the DNS record.
   "routes": [{ "pattern": "daffa.me", "custom_domain": true }],
 
-  // src/robots.txt is imported as a string.
-  "rules": [{ "type": "Text", "globs": ["**/*.txt"], "fallthrough": false }],
+  // src/robots.txt is imported as a string. The icons are imported as
+  // ArrayBuffers straight from apps/dashboard/public, where npm run icons
+  // writes them, so both Workers serve one set of files (src/icons.ts).
+  "rules": [
+    { "type": "Text", "globs": ["**/*.txt"], "fallthrough": false },
+    { "type": "Data", "globs": ["**/*.ico", "**/*.png"], "fallthrough": false }
+  ],
 
   "observability": { "enabled": true },
 
