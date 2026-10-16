@@ -35,8 +35,8 @@ The public page never loads dashboard code, and the dashboard never loads public
 ### Redirect flow
 
 1. The path is lowercased and stripped of a trailing slash. Any path that fails the slug pattern receives a 404 without a database query.
-2. The slug guessing guard checks whether the visitor's network is blocked, in parallel with step 3, so a click waits for nothing extra.
-3. One indexed D1 lookup finds the link.
+2. The slug guessing guard checks whether the visitor's network is blocked at this location, in parallel with step 3, so a click waits for nothing extra.
+3. One indexed D1 lookup finds the link and, in the same query, any global block of the guard for the visitor's network.
 4. An active link receives a 302 with a `no-store, private` Cache-Control header, so browsers never cache the redirect and every visit stays countable.
 5. Click logging runs in `ctx.waitUntil` after the response, so logging never delays the redirect. HEAD requests are not logged.
 6. Inactive or expired links receive 410, unknown slugs receive 404, and database failures receive 503. A blocked network receives 429 for every slug, before anything is logged or counted.
@@ -53,10 +53,18 @@ Guessing slugs is the only way to find a private link, so the redirector slows g
 - A 410 does not count. It reveals that a slug exists but never its destination, and an expired link printed on a poster or an event QR code can be opened by many people behind one address at once.
 - The 429 daily limit pages, the 503 page, `/`, `/favicon.ico`, `/robots.txt`, other methods, and paths browsers and crawlers request by themselves (`/apple-touch-icon*.png`, `/.well-known/*`, `/sitemap.xml`, `/ads.txt`, `/site.webmanifest`, and similar) never count. Safari asks for the touch icons on every page it shows.
 - A network is an IPv4 address or an IPv6 /64, the same rule as the public creation limit (`shared/ip.ts`). It reaches the Workers Rate Limiting binding `MISS_LIMITER` only as an HMAC-SHA-256 keyed with the redirector secret `RATE_LIMIT_SECRET`, so no address is stored or sent anywhere.
-- The limit is 10 misses per 60 seconds per network. The eleventh miss and every later request from that network, valid slugs included, receive the 429 attempt limit page with `Retry-After` for 60 seconds. `/`, `/favicon.ico`, and `/robots.txt` stay open.
-- The binding has no read only check, so a refused miss leaves a block marker in two places. One is a map in the memory of the isolate. The other is an empty entry in the Cache API of the data center, keyed by the HMAC and expiring after 60 seconds. The cache lookup runs in parallel with the D1 slug lookup, so a click pays no extra latency, and only junk paths without a lookup wait about a millisecond for it. Nothing is written to D1.
-- Every failure fails open. A missing secret, a binding error, or a cache error lets the request through normally and is logged once per isolate.
-- Counters and markers are per Cloudflare location and eventually consistent. The guard turns thousands of guesses per second into about 10 per one or two minutes for one network, but a guesser with many networks or locations is only slowed, not stopped. Generated six character slugs (32 to the power of 6, about 1,07 billion) stay out of reach either way. Short custom slugs gain the most.
+- The limit is 10 misses per 60 seconds per network. Two detectors count them, and the first to go over trips the guard. A counter in the memory of the isolate counts before anything is awaited, so a burst of parallel misses handled by one isolate trips on the eleventh. The binding is shared by the isolates of one location but is eventually consistent, and catches paced misses that different isolates handle. The memory counter keeps working when the binding is missing or fails.
+- The eleventh miss and every later request from that network, valid slugs included, receive the 429 attempt limit page. `Retry-After` is 300 seconds on the trip, and the time left on the block afterwards. `/`, `/favicon.ico`, and `/robots.txt` stay open.
+- A trip blocks at three levels:
+  - **Isolate memory**, a map with the end of the block, for 60 seconds.
+  - **Cache API**, an empty entry in the data center keyed by the HMAC, for 60 seconds. Every isolate at that location sees it.
+  - **D1**, one row in `guard_blocks` with the end of the block 5 minutes after the trip, which every location reads.
+- The D1 row is written by one upsert in `ctx.waitUntil`, and at most once per network per isolate per 5 minutes. A guesser cannot turn misses into D1 writes, and a later trip only ever extends the block.
+- Every location reads the row inside the existing slug lookup, so a click pays no extra round trip. Once a lookup reports the block, the isolate remembers it until it ends, and later requests from that network stop before D1. The cache lookup also runs in parallel with the D1 slug lookup. Only junk paths without a lookup wait about a millisecond for the cache.
+- Paths that fail the slug pattern never reach D1, so they see the local levels only. They can never reveal a slug.
+- Every failure fails open. A missing secret, a binding error, a cache error, or a failed D1 write lets the request through normally, or still answers the 429 of the trip, and is logged once per isolate. If `guard_blocks` is missing because the redirector was deployed before migration 0003, the lookup falls back to the statement without the global block, so every link keeps working.
+- The binding and the local levels are per Cloudflare location. The D1 row spreads a block from one location to all others about one write latency later, since D1 serves reads from its primary. With read replication enabled, that delay would grow to the replica lag.
+- The guard turns thousands of guesses per second into about 10 per few minutes for one network. A guesser with many networks is still only slowed, not stopped. Generated six character slugs (32 to the power of 6, about 1,07 billion) stay out of reach either way. Short custom slugs gain the most.
 
 ### Public link creation
 
@@ -83,7 +91,7 @@ Timestamp, full IP address from `CF-Connecting-IP`, raw User-Agent, bot flag, co
 - User-Agent parsing, charts, and QR generation run in the browser. The API returns grouped raw data.
 - Aggregations run in SQL against two indexes on `clicks`. `npm run explain` confirms that no query scans the full `clicks` table, and that the redirector, the public endpoint, the lists, moderation, and the cron reach every stored table through an index.
 - Visitor pages are single HTML documents with inline CSS, no JavaScript, no web fonts, and a hard limit of 3 KB. They cover 404 not found, 410 gone, 503 unavailable, the two 429 pages of the public link daily limits, the 429 attempt limit page of the slug guessing guard, and the 200 notice of public links. The HTML shell of `link.daffa.me` is held to the same limit.
-- The slug guessing guard adds no network wait. The Rate Limiting binding counts in memory at the location, and its block marker is read in parallel with the D1 lookup.
+- The slug guessing guard adds no network wait. The Rate Limiting binding counts in memory at the location, its block marker is read in parallel with the D1 lookup, and the global block is a primary key lookup inside the same query. A miss writes nothing to D1. Only a trip writes, once per network per isolate per 5 minutes.
 - The public page loads the boot entry, the shared primitives, and its own chunk, 88.8 KB of JavaScript and CSS after gzip on 3 Oct 2026, most of it React. `npm run check:bundle` fails above a budget of 98 KB. The chain hero is plain CSS, without an animation library, and shows a static frame under `prefers-reduced-motion`.
 - The links list loads 25 rows at a time. An IntersectionObserver requests the next page before the end of the list scrolls into view, and a Load More button does the same by keyboard. Rows are merged by id, so a row never appears twice.
 
@@ -122,7 +130,7 @@ The client router and the User-Agent parser are hand written to keep the bundle 
 ├── apps/
 │   ├── redirector/          Worker for daffa.me
 │   │   ├── src/index.ts     routes and redirect logic
-│   │   ├── src/guard.ts     slug guessing guard (misses, Rate Limiting binding, block marker)
+│   │   ├── src/guard.ts     slug guessing guard (miss counters, block marker, global block)
 │   │   ├── src/log.ts       click insert inside waitUntil
 │   │   ├── src/pages.ts     visitor pages and the public link notice
 │   │   ├── src/sql.ts       every redirector statement
@@ -149,7 +157,8 @@ The client router and the User-Agent parser are hand written to keep the bundle 
 │                            (slug rules, URL normalization and validation, tags,
 │                            status, bot regex, public link rules, domain matching,
 │                            design tokens, time helpers, API types, tests)
-├── migrations/              D1 schema (0001_init.sql, 0002_public_links.sql)
+├── migrations/              D1 schema (0001_init.sql, 0002_public_links.sql,
+│                            0003_guard_blocks.sql)
 ├── scripts/                 Node scripts for seeding, audits, smoke tests, icons,
 │                            the Open Graph image, and the local cron trigger
 │                            (a build also writes apps/dashboard/dist/client-chunks.json,
@@ -170,8 +179,9 @@ The client router and the User-Agent parser are hand written to keep the bundle 
 | `blocked_domains` | hostnames refused for new public links, each covering its subdomains |
 | `rate_limits` | public creation counts per clock hour, bucket `global` or `ip:` plus an HMAC |
 | `public_click_budget` | clicks of all public links per UTC day |
+| `guard_blocks` | global blocks of the slug guessing guard, key `miss:` plus an HMAC of the network and the end of the block, never an address |
 
-Indexes `idx_clicks_link_ts (link_id, ts)` and `idx_clicks_link_bot_ts (link_id, is_bot, ts)` serve every analytics query, and `idx_links_public_created (is_public, created_at)` serves both tabs of the links list. A daily cron at 00:15 UTC deletes `rate_limits` rows older than one day and `public_click_budget` rows older than seven days. Link status is never stored. Status is derived from the active flag and the expiry date. Deleting a link cascades to the clicks and tag relations of that link. All timestamps are epoch milliseconds, and the dashboard displays every timestamp in WIB (UTC+7).
+Indexes `idx_clicks_link_ts (link_id, ts)` and `idx_clicks_link_bot_ts (link_id, is_bot, ts)` serve every analytics query, `idx_links_public_created (is_public, created_at)` serves both tabs of the links list, and `idx_guard_blocks_until (blocked_until)` serves the purge of ended guard blocks. A daily cron at 00:15 UTC deletes `rate_limits` rows older than one day, `public_click_budget` rows older than seven days, and `guard_blocks` rows whose block has ended, all in one batch. Link status is never stored. Status is derived from the active flag and the expiry date. Deleting a link cascades to the clicks and tag relations of that link. All timestamps are epoch milliseconds, and the dashboard displays every timestamp in WIB (UTC+7).
 
 ## Link rules
 
@@ -319,6 +329,7 @@ Narrow screens
 The standard workflow is change locally, verify with `npm run check`, commit, then deploy the affected Worker with `npm run deploy:redirect` or `npm run deploy:dashboard`.
 
 - Run `npm run migrate:remote` only when a new file appears in `migrations/`. Code or style changes never need a migration.
+- A migration always runs before the deploy that needs it. For `0003_guard_blocks.sql`, run `npm run migrate:remote` first and `npm run deploy:redirect` after it. The migration only adds a table, so the redirector already deployed keeps working in between. A redirector deployed first falls back to the lookup without the global block and logs `slug guard: guard_blocks is missing`, until the migration runs. The dashboard deploy, whose cron purges the table, also comes after the migration.
 - Wrangler commands for the dashboard must run inside the dashboard workspace, because the Vite plugin writes a redirected Wrangler config there during the build. Secrets are set with `npm exec -w @daffa/dashboard -- wrangler secret put NAME`.
 - The dashboard needs four production secrets. `ACCESS_TEAM_DOMAIN` holds the Zero Trust team domain without the scheme, `ACCESS_AUD` holds the Application Audience tag of the Access application, `TURNSTILE_SECRET` holds the secret key of the Turnstile widget, and `RATE_LIMIT_SECRET` holds a long random value that keys the visitor buckets.
 - The redirector needs one production secret, `RATE_LIMIT_SECRET`, a long random value of its own that keys the HMAC of the slug guessing guard. The owner sets it once with `npx wrangler secret put RATE_LIMIT_SECRET -c apps/redirector/wrangler.jsonc` before deploying the guard. Without it the guard stays off and logs an error. The Rate Limiting binding `MISS_LIMITER` uses `namespace_id` 1001, which must stay unique in the account.
@@ -347,11 +358,12 @@ The standard workflow is change locally, verify with `npm run check`, commit, th
 - Workers and Pages, `daffa-dashboard`, Cron Events. The daily purge logs how many rows it deleted, and a failed run shows as an error.
 - D1, `daffa-links`, Overview tab. Rows read and rows written should stay far below the free plan limits.
 - Most redirector traffic from unfamiliar regions comes from automated scanners and link preview crawlers. Invalid paths are answered without a database query.
-- Workers and Pages, `daffa-redirector`, Logs. A line starting with `slug guard` means the guard failed open, for a missing `RATE_LIMIT_SECRET`, a missing binding, or a binding or cache error. Each kind appears at most once per isolate.
+- Workers and Pages, `daffa-redirector`, Logs. A line starting with `slug guard` means the guard failed open, for a missing `RATE_LIMIT_SECRET`, a missing binding, a binding or cache error, a failed `guard_blocks` write, or a missing `guard_blocks` table. Each kind appears at most once per isolate.
+- D1, `daffa-links`, Console. `SELECT COUNT(*) FROM guard_blocks WHERE blocked_until > unixepoch() * 1000` counts the networks blocked right now. Rows written grow by one per trip per isolate, never per miss.
 
 ## Maintenance notes
 
-- The worst case 404 visitor page sits about 50 bytes below the 3 KB limit, and the attempt limit page about 55 bytes. Any new content on visitor pages requires savings elsewhere.
+- The worst case 404 visitor page sits about 50 bytes below the 3 KB limit, and the attempt limit page about 60 bytes. Any new content on visitor pages requires savings elsewhere.
 - UI copy follows a formal descriptive tone, avoids personal pronouns, and never uses em dashes, en dashes, or semicolons. `npm run check:copy` enforces the punctuation rule.
 - Every color lives in `apps/dashboard/src/client/styles/tokens.css` and `shared/tokens.ts`, and a unit test keeps both files identical. `npm run check:tokens` rejects hard coded colors in client source.
 - `design/` is a read only reference. Design changes are exported again from Claude Design and replace the folder in a dedicated commit.

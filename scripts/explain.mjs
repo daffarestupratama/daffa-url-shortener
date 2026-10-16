@@ -11,7 +11,10 @@ import { d1Local } from './d1.mjs';
  *
  * Two kinds of SCAN line never read stored rows and are allowed under noScan:
  * json_each over a bound parameter (VIRTUAL TABLE) and a derived table or
- * subquery result.
+ * subquery result. SQLite names a derived table by its alias, as in
+ * "CO-ROUTINE one" followed by "SCAN one", so every alias a plan introduces
+ * through CO-ROUTINE or MATERIALIZE counts as derived. The redirector lookup
+ * relies on this for its constant row.
  *
  * The SQL comes straight from apps/dashboard/src/worker/queries.ts and
  * apps/redirector/src/sql.ts, so this checks what actually runs. Parameters
@@ -20,11 +23,17 @@ import { d1Local } from './d1.mjs';
 
 const CLICK_INDEXES = ['idx_clicks_link_ts', 'idx_clicks_link_bot_ts'];
 
+/** Aliases of derived tables in one plan, from its CO-ROUTINE and MATERIALIZE lines. */
+function derivedNames(details) {
+  return new Set(details.map((detail) => /^(?:CO-ROUTINE|MATERIALIZE) (\S+)/.exec(detail)?.[1]).filter(Boolean));
+}
+
 /** A SCAN of a stored table, as opposed to json_each or a derived table. */
-function scansStoredTable(detail) {
+function scansStoredTable(detail, derived) {
   if (!/^SCAN /.test(detail)) return false;
   if (/ VIRTUAL TABLE\b/.test(detail)) return false;
   if (/^SCAN (\(|SUBQUERY\b|CONSTANT ROW\b)/.test(detail)) return false;
+  if (derived.has(detail.split(' ')[1])) return false;
   return true;
 }
 
@@ -67,7 +76,8 @@ EXPLAIN_CASES.forEach((testCase, index) => {
   const details = rows.map((row) => row.detail);
   const scansClicks = details.some((detail) => /\bSCAN (c|clicks)\b/.test(detail));
   const usedIndexes = CLICK_INDEXES.filter((name) => details.some((d) => d.includes(name)));
-  const scanned = testCase.noScan ? details.filter(scansStoredTable) : [];
+  const derived = derivedNames(details);
+  const scanned = testCase.noScan ? details.filter((detail) => scansStoredTable(detail, derived)) : [];
 
   let verdict;
   if (scanned.length > 0) {

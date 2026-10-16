@@ -18,6 +18,8 @@
   // memory, without a network call. The period may only be 10 or 60. The
   // values must equal MISS_LIMIT and MISS_WINDOW_SECONDS in guard.ts, which a
   // unit test checks. namespace_id must be unique in the account.
+  // A trip also writes one row to the D1 table guard_blocks (migration 0003),
+  // which blocks valid slugs from that network at every location for 5 minutes.
   // The guard also needs the secret RATE_LIMIT_SECRET, which keys the HMAC of
   // the visitor's address. Without it the guard stays off.
   "ratelimits": [

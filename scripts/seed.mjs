@@ -273,6 +273,7 @@ function buildSql() {
     'DELETE FROM blocked_domains;',
     'DELETE FROM rate_limits;',
     'DELETE FROM public_click_budget;',
+    'DELETE FROM guard_blocks;',
     '',
   ];
 

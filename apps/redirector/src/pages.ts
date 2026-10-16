@@ -204,7 +204,7 @@ const BUSY: PageSpec = {
 
 /**
  * One network opened too many addresses that do not exist (see guard.ts).
- * Orange marks a limit that resets on its own, here after about a minute.
+ * Orange marks a limit that resets on its own, here after a few minutes.
  */
 const ATTEMPT_LIMIT: PageSpec = {
   status: 429,
@@ -217,7 +217,7 @@ const ATTEMPT_LIMIT: PageSpec = {
   },
   heading: 'Too many unknown links',
   body: () =>
-    'Many addresses that do not exist were opened from this network in a short time. Short links open again in about one minute.',
+    'Many addresses that do not exist were opened from this network in a short time. Short links open again in a few minutes.',
 };
 
 /** Exported for scripts/check-page-size.mjs and scripts/audit-copy.mjs. */

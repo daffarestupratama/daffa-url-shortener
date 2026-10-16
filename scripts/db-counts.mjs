@@ -8,7 +8,7 @@ import { d1Local } from './d1.mjs';
  */
 
 const SQL = [
-  'SELECT (SELECT COUNT(*) FROM links) AS links, (SELECT COUNT(*) FROM links WHERE is_public = 1) AS public_links, (SELECT COUNT(*) FROM tags) AS tags, (SELECT COUNT(*) FROM link_tags) AS link_tags, (SELECT COUNT(*) FROM clicks) AS clicks, (SELECT COUNT(*) FROM clicks WHERE is_bot = 1) AS bot_clicks, (SELECT COUNT(*) FROM blocked_domains) AS blocked_domains, (SELECT COUNT(*) FROM rate_limits) AS rate_limits, (SELECT COUNT(*) FROM public_click_budget) AS budget_days;',
+  'SELECT (SELECT COUNT(*) FROM links) AS links, (SELECT COUNT(*) FROM links WHERE is_public = 1) AS public_links, (SELECT COUNT(*) FROM tags) AS tags, (SELECT COUNT(*) FROM link_tags) AS link_tags, (SELECT COUNT(*) FROM clicks) AS clicks, (SELECT COUNT(*) FROM clicks WHERE is_bot = 1) AS bot_clicks, (SELECT COUNT(*) FROM blocked_domains) AS blocked_domains, (SELECT COUNT(*) FROM rate_limits) AS rate_limits, (SELECT COUNT(*) FROM public_click_budget) AS budget_days, (SELECT COUNT(*) FROM guard_blocks) AS guard_blocks;',
   'SELECT id, slug FROM links ORDER BY id;',
   'SELECT l.slug, COUNT(c.id) AS clicks FROM links l LEFT JOIN clicks c ON c.link_id = l.id WHERE l.is_public = 0 GROUP BY l.id ORDER BY l.id;',
   'SELECT slug, click_total, click_today FROM links WHERE is_public = 1 ORDER BY id;',

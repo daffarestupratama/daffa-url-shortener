@@ -16,7 +16,9 @@ import {
   defaultCache,
   guardKey,
   isAutoPath,
+  noteGlobalBlock,
   recordMiss,
+  reportOnce,
   type GuardEnv,
 } from './guard';
 import { logClick } from './log';
@@ -31,7 +33,7 @@ import {
   renderUnavailable,
 } from './pages';
 import ROBOTS from './robots.txt';
-import { LOOKUP } from './sql';
+import { LOOKUP, LOOKUP_UNGUARDED } from './sql';
 
 export interface Env extends GuardEnv {
   DB: D1Database;
@@ -41,7 +43,7 @@ const HOME = 'https://daffarestupratama.com';
 
 const NO_STORE = 'no-store, private';
 
-interface LookupRow {
+interface LinkRow {
   id: number;
   url: string;
   is_active: number;
@@ -51,6 +53,33 @@ interface LookupRow {
   click_today: number;
   /** Clicks of all public links today. Always null for a private link. */
   budget_used: number | null;
+}
+
+/**
+ * LOOKUP always returns one row. For an unknown slug every link column is
+ * null, and blocked_until still reports a global block of the guard.
+ */
+type LookupRow = { [K in keyof LinkRow]: LinkRow[K] | null } & { blocked_until?: number | null };
+
+type Lookup = { row: LookupRow | null } | { error: unknown };
+
+/**
+ * The slug lookup with the global block of the guard in the same query. If
+ * guard_blocks is missing because the redirector was deployed before
+ * migration 0003, the previous lookup runs instead, so every link still works.
+ */
+async function lookup(db: D1Database, slug: string, today: number, key: string | null, now: number): Promise<Lookup> {
+  try {
+    return { row: await db.prepare(LOOKUP).bind(slug, today, key, now).first<LookupRow>() };
+  } catch (error) {
+    if (!String(error).includes('guard_blocks')) return { error };
+    reportOnce('guard_blocks is missing, run the migrations', error);
+  }
+  try {
+    return { row: await db.prepare(LOOKUP_UNGUARDED).bind(slug, today).first<LookupRow>() };
+  } catch (error) {
+    return { error };
+  }
 }
 
 /** Public link URLs are rendered into an href, so only http and https get there. */
@@ -104,47 +133,47 @@ app.on(['GET', 'HEAD'], '/*', async (c) => {
 
   const today = utcDayStart(now);
 
-  // The block marker and the slug lookup run side by side, so a hit pays no
-  // extra latency for the guard. A block wins over whatever the lookup found:
-  // nothing is logged or counted for a blocked request.
-  const [until, lookup] = await Promise.all([
+  // The block marker and the slug lookup run side by side, and the lookup
+  // reads the global block in the same query, so a hit pays no extra latency
+  // for the guard. A block wins over whatever the lookup found: nothing is
+  // logged or counted for a blocked request.
+  const [cached, found] = await Promise.all([
     key ? blockedInCache(key, now, cache) : Promise.resolve(null),
-    c.env.DB.prepare(LOOKUP)
-      .bind(slug, today)
-      .first<LookupRow>()
-      .then(
-        (row) => ({ row }),
-        (error: unknown) => ({ error }),
-      ),
+    lookup(c.env.DB, slug, today, key, now),
   ]);
+  const global = 'row' in found ? (found.row?.blocked_until ?? null) : null;
+  if (key && global) noteGlobalBlock(key, global);
+  const until = Math.max(cached ?? 0, global ?? 0);
   if (until) return blocked(until);
 
-  if ('error' in lookup) {
-    console.error('link lookup failed', lookup.error);
+  if ('error' in found) {
+    console.error('link lookup failed', found.error);
     return pageResponse(renderUnavailable(slug), 503);
   }
 
-  const row = lookup.row;
-  if (!row) {
+  const row = found.row;
+  if (!row || row.id === null) {
     return miss();
   }
+  // An id means the join found the link, so its NOT NULL columns are set.
+  const link = row as LinkRow;
 
-  if (!isServable(row.is_active === 1, row.expires_at, now)) {
+  if (!isServable(link.is_active === 1, link.expires_at, now)) {
     return pageResponse(renderGone(slug), 410);
   }
 
-  if (row.is_public === 1) {
-    return servePublic(c.env.DB, c.executionCtx, c.req.method, slug, row, now, today);
+  if (link.is_public === 1) {
+    return servePublic(c.env.DB, c.executionCtx, c.req.method, slug, link, now, today);
   }
 
   // HEAD is a probe, not a visit, so it is not logged.
   if (c.req.method === 'GET') {
-    c.executionCtx.waitUntil(logClick(c.env.DB, c.req.raw, row.id));
+    c.executionCtx.waitUntil(logClick(c.env.DB, c.req.raw, link.id));
   }
 
   // The incoming query string is ignored on purpose. The destination is the
   // stored URL exactly as saved, so /cv?ref=abc does not carry ref=abc along.
-  return c.newResponse(null, 302, { Location: row.url, 'Cache-Control': NO_STORE });
+  return c.newResponse(null, 302, { Location: link.url, 'Cache-Control': NO_STORE });
 });
 
 /**
@@ -163,7 +192,7 @@ function servePublic(
   ctx: { waitUntil(promise: Promise<unknown>): void },
   method: string,
   slug: string,
-  row: LookupRow,
+  row: LinkRow,
   now: number,
   today: number,
 ): Response {

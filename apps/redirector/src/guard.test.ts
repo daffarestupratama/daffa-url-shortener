@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MISS_LIMIT, MISS_WINDOW_SECONDS, resetGuardMemory } from './guard';
+import { hmacTag, rateLimitSubject } from '@daffa/shared';
+import { GLOBAL_BLOCK_SECONDS, MISS_LIMIT, MISS_WINDOW_SECONDS, resetGuardMemory } from './guard';
 import app, { type Env } from './index';
+import { LOOKUP, UPSERT_GUARD_BLOCK } from './sql';
 import wranglerConfig from '../wrangler.jsonc?raw';
 
 const NOW = Date.UTC(2026, 9, 5, 7, 0, 0);
 const DAY = Date.UTC(2026, 9, 5);
+const IP = '203.0.113.7';
+const SECRET = 'test-secret';
 
 interface Row {
   id: number;
@@ -22,18 +26,48 @@ const INACTIVE: Row = { ...PRIVATE, id: 2, is_active: 0 };
 const PUBLIC: Row = { ...PRIVATE, id: 3, is_public: 1, click_day: DAY, click_today: 3, budget_used: 10 };
 const CAPPED: Row = { ...PUBLIC, id: 4, click_today: 500 };
 
-/** A D1 stand in: lookups answer from `rows`, writes are recorded. `fail` makes lookups throw. */
-function fakeDb(rows: Record<string, Row>, fail = false) {
+/** What LOOKUP returns for an unknown slug: the constant row with every link column NULL. */
+const NO_LINK = { id: null, url: null, is_active: null, expires_at: null, is_public: null, click_day: null, click_today: null, budget_used: null };
+
+interface DbOptions {
+  /** Every lookup throws, the way D1 does when it is unreachable. */
+  fail?: boolean;
+  /** LOOKUP throws as it does before migration 0003. The unguarded lookup still works. */
+  noTable?: boolean;
+  /** The guard_blocks upsert throws. */
+  writeFails?: boolean;
+}
+
+/**
+ * A D1 stand in. LOOKUP answers from `rows` and `blocks` the way the SQL does:
+ * always one row, blocked_until only while the block lasts. The unguarded
+ * lookup answers from `rows` alone. Upserts land in `blocks` and `upserts`,
+ * every other write is recorded in `writes`.
+ */
+function fakeDb(rows: Record<string, Row>, options: DbOptions = {}) {
   const writes: string[] = [];
-  let lookups = 0;
+  const upserts: unknown[][] = [];
+  const lookupArgs: unknown[][] = [];
+  const blocks = new Map<string, number>();
   const statement = (sql: string) => ({
     bind: (...args: unknown[]) => ({
       first: async () => {
-        lookups += 1;
-        if (fail) throw new Error('D1_ERROR: offline');
-        return rows[String(args[0])] ?? null;
+        lookupArgs.push(args);
+        if (options.fail) throw new Error('D1_ERROR: offline');
+        const row = rows[String(args[0])];
+        if (sql !== LOOKUP) return row ?? null;
+        if (options.noTable) throw new Error('D1_ERROR: no such table: guard_blocks: SQLITE_ERROR');
+        const until = args[2] === null ? undefined : blocks.get(String(args[2]));
+        return { ...(row ?? NO_LINK), blocked_until: until !== undefined && until > Number(args[3]) ? until : null };
       },
       run: async () => {
+        if (sql === UPSERT_GUARD_BLOCK) {
+          if (options.writeFails) throw new Error('D1_ERROR: database is locked');
+          upserts.push(args);
+          const [key, until] = args as [string, number];
+          blocks.set(key, Math.max(until, blocks.get(key) ?? 0));
+          return {};
+        }
         writes.push(sql);
         return {};
       },
@@ -47,7 +81,7 @@ function fakeDb(rows: Record<string, Row>, fail = false) {
       return [];
     },
   };
-  return { db: db as unknown as D1Database, writes, lookups: () => lookups };
+  return { db: db as unknown as D1Database, writes, upserts, blocks, lookupArgs, lookups: () => lookupArgs.length };
 }
 
 /** The Rate Limiting binding: allows `limit` calls per key, records every key, can throw. */
@@ -82,7 +116,7 @@ function fakeCache(fail = false) {
   return { cache, store };
 }
 
-interface Setup {
+interface Setup extends DbOptions {
   rows?: Record<string, Row>;
   limiter?: ReturnType<typeof fakeLimiter>;
   cacheFails?: boolean;
@@ -91,19 +125,23 @@ interface Setup {
 }
 
 function setup(options: Setup = {}) {
-  const db = fakeDb(options.rows ?? { cv: PRIVATE, old: INACTIVE, x7kq2m: PUBLIC, r9pd3v: CAPPED }, options.dbFails);
+  const db = fakeDb(options.rows ?? { cv: PRIVATE, old: INACTIVE, x7kq2m: PUBLIC, r9pd3v: CAPPED }, {
+    fail: options.dbFails,
+    noTable: options.noTable,
+    writeFails: options.writeFails,
+  });
   const limiter = options.limiter ?? fakeLimiter();
   const { cache, store } = fakeCache(options.cacheFails);
   vi.stubGlobal('caches', { default: cache });
   const env: Env = {
     DB: db.db,
     MISS_LIMITER: limiter.binding,
-    RATE_LIMIT_SECRET: 'secret' in options ? options.secret : 'test-secret',
+    RATE_LIMIT_SECRET: 'secret' in options ? options.secret : SECRET,
   };
   const pending: Promise<unknown>[] = [];
   const ctx = { waitUntil: (promise: Promise<unknown>) => void pending.push(promise), passThroughOnException: () => {} };
 
-  const request = async (pathname: string, ip = '203.0.113.7', method = 'GET') => {
+  const request = async (pathname: string, ip = IP, method = 'GET') => {
     const response = await app.fetch(
       new Request(`https://daffa.me${pathname}`, { method, headers: { 'CF-Connecting-IP': ip } }),
       env,
@@ -114,6 +152,12 @@ function setup(options: Setup = {}) {
   };
   return { request, db, limiter, store };
 }
+
+/** The guard key of an address, as guard.ts derives it. */
+const keyOf = async (ip = IP) => `miss:${await hmacTag(SECRET, rateLimitSubject(ip))}`;
+
+/** A guesser that never trips the binding, as the eventually consistent binding behaved in production. */
+const lenientLimiter = () => fakeLimiter(Number.POSITIVE_INFINITY);
 
 beforeEach(() => {
   resetGuardMemory();
@@ -134,6 +178,17 @@ async function spendMisses(request: ReturnType<typeof setup>['request'], ip?: st
     expect(response.status).toBe(404);
   }
 }
+
+/** Misses on paths that skip the lookup, so they see the local layers only. */
+async function junkMisses(request: ReturnType<typeof setup>['request'], count: number) {
+  const statuses: number[] = [];
+  for (let i = 0; i < count; i += 1) statuses.push((await request(`/wp-login-${i}.php`)).status);
+  return statuses;
+}
+
+/** Messages of the console.error calls the guard made. */
+const guardLogs = () =>
+  vi.mocked(console.error).mock.calls.map((call) => String(call[0])).filter((message) => message.startsWith('slug guard'));
 
 describe('what counts as a miss', () => {
   it('counts unknown slugs and paths that cannot be slugs', async () => {
@@ -171,12 +226,12 @@ describe('what counts as a miss', () => {
 });
 
 describe('blocking', () => {
-  it('answers the miss over the limit with the attempt limit page, then blocks every request for the window', async () => {
+  it('answers the miss over the limit with the attempt limit page, then blocks every request', async () => {
     const { request, db, store } = setup();
     await spendMisses(request);
     const over = await request('/one-more');
     expect(over.status).toBe(429);
-    expect(over.headers.get('Retry-After')).toBe(String(MISS_WINDOW_SECONDS));
+    expect(over.headers.get('Retry-After')).toBe(String(GLOBAL_BLOCK_SECONDS));
     expect(over.headers.get('Cache-Control')).toBe('no-store, private');
     expect(await over.text()).toContain('Too many unknown links');
     expect(store.size).toBe(1);
@@ -193,21 +248,32 @@ describe('blocking', () => {
     expect((await request('/robots.txt')).status).toBe(200);
   });
 
-  it('blocks from the cache marker in another isolate, with the time left as Retry-After', async () => {
+  it('blocks from the cache marker in another isolate for the local window, and from the global row after it', async () => {
     const { request, store } = setup();
     await spendMisses(request);
     await request('/one-more');
     expect(store.size).toBe(1);
 
-    // A fresh isolate has an empty memory but sees the marker of the data center.
+    // A fresh isolate has an empty memory but sees the marker of the data
+    // center. A junk path never reaches the lookup, so the marker alone counts.
     resetGuardMemory();
     vi.setSystemTime(NOW + 20_000);
-    const blocked = await request('/cv');
-    expect(blocked.status).toBe(429);
-    expect(blocked.headers.get('Retry-After')).toBe('40');
+    const junk = await request('/wp-login.php');
+    expect(junk.status).toBe(429);
+    expect(junk.headers.get('Retry-After')).toBe(String(MISS_WINDOW_SECONDS - 20));
+
+    // A valid slug also reads the global row, which lasts longer.
+    resetGuardMemory();
+    const slug = await request('/cv');
+    expect(slug.status).toBe(429);
+    expect(slug.headers.get('Retry-After')).toBe(String(GLOBAL_BLOCK_SECONDS - 20));
 
     resetGuardMemory();
     vi.setSystemTime(NOW + MISS_WINDOW_SECONDS * 1000);
+    expect((await request('/cv')).status).toBe(429);
+
+    resetGuardMemory();
+    vi.setSystemTime(NOW + GLOBAL_BLOCK_SECONDS * 1000);
     expect((await request('/cv')).status).toBe(302);
   });
 
@@ -219,11 +285,124 @@ describe('blocking', () => {
     expect((await request('/cv', '203.0.113.8')).status).toBe(302);
   });
 
-  it('never lets hits alone trigger a block', async () => {
-    const { request, limiter } = setup();
+  it('never lets hits alone trigger a block or write a global row', async () => {
+    const { request, limiter, db } = setup();
     for (let i = 0; i < 50; i += 1) expect((await request('/cv')).status).toBe(302);
     expect(limiter.calls()).toBe(0);
     expect((await request('/unknown')).status).toBe(404);
+    expect(db.upserts).toHaveLength(0);
+  });
+});
+
+describe('local burst counter', () => {
+  it('trips on a parallel burst even when the binding lets every miss through', async () => {
+    const { request, limiter, db } = setup({ limiter: lenientLimiter() });
+    const burst = await Promise.all(
+      Array.from({ length: MISS_LIMIT + 1 }, (_, i) => request(i % 2 ? `/nope-${i}` : `/wp-login-${i}.php`)),
+    );
+    const statuses = burst.map((response) => response.status);
+    expect(statuses.filter((status) => status === 404)).toHaveLength(MISS_LIMIT);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(1);
+    expect(burst.find((response) => response.status === 429)?.headers.get('Retry-After')).toBe(String(GLOBAL_BLOCK_SECONDS));
+    // The miss over the limit trips in memory and never asks the binding.
+    expect(limiter.calls()).toBe(MISS_LIMIT);
+    expect(db.upserts).toEqual([[await keyOf(), NOW + GLOBAL_BLOCK_SECONDS * 1000]]);
+    expect((await request('/cv')).status).toBe(429);
+  });
+
+  it('starts a new window once the old one has passed', async () => {
+    const { request } = setup({ limiter: lenientLimiter() });
+    expect(await junkMisses(request, MISS_LIMIT)).not.toContain(429);
+    vi.setSystemTime(NOW + MISS_WINDOW_SECONDS * 1000);
+    expect(await junkMisses(request, MISS_LIMIT)).not.toContain(429);
+    expect((await request('/wp-login.php')).status).toBe(429);
+  });
+
+  it('keeps counting in memory when the binding throws or is missing', async () => {
+    const throwing = setup({ limiter: fakeLimiter(MISS_LIMIT, true) });
+    await spendMisses(throwing.request);
+    expect((await throwing.request('/one-more')).status).toBe(429);
+
+    resetGuardMemory();
+    const missing = setup();
+    const env = { DB: missing.db.db, RATE_LIMIT_SECRET: SECRET } as Env;
+    const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
+    const fetchPath = (path: string) =>
+      app.fetch(new Request(`https://daffa.me${path}`, { headers: { 'CF-Connecting-IP': IP } }), env, ctx);
+    for (let i = 0; i < MISS_LIMIT; i += 1) expect((await fetchPath(`/nope-${i}`)).status).toBe(404);
+    expect((await fetchPath('/one-more')).status).toBe(429);
+    expect(guardLogs()).toContain('slug guard: MISS_LIMITER binding is missing, failing open');
+  });
+});
+
+describe('global block', () => {
+  it('blocks valid and unknown slugs from a global row alone, while junk paths see local layers only', async () => {
+    const { request, db, limiter } = setup();
+    db.blocks.set(await keyOf(), NOW + 120_000);
+
+    // No local marker exists here, and a junk path never reads D1.
+    expect((await request('/wp-login.php')).status).toBe(404);
+
+    const blocked = await request('/cv');
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get('Retry-After')).toBe('120');
+    expect(await blocked.text()).toContain('Too many unknown links');
+    expect(db.writes).toHaveLength(0);
+
+    // The isolate now remembers the block, so even junk paths stop before D1.
+    const lookups = db.lookups();
+    expect((await request('/cv', undefined, 'HEAD')).status).toBe(429);
+    expect((await request('/x7kq2m')).status).toBe(429);
+    expect((await request('/wp-login.php')).status).toBe(429);
+    expect(db.lookups()).toBe(lookups);
+    expect(limiter.calls()).toBe(1);
+  });
+
+  it('reports the block to an unknown slug too, without counting it', async () => {
+    const { request, db, limiter } = setup();
+    db.blocks.set(await keyOf(), NOW + 120_000);
+    expect((await request('/does-not-exist')).status).toBe(429);
+    expect(limiter.calls()).toBe(0);
+  });
+
+  it('ignores a row whose block has ended', async () => {
+    const { request, db } = setup();
+    db.blocks.set(await keyOf(), NOW - 1000);
+    expect((await request('/cv')).status).toBe(302);
+    expect((await request('/does-not-exist')).status).toBe(404);
+  });
+
+  it('only affects the network the row belongs to', async () => {
+    const { request, db } = setup();
+    db.blocks.set(await keyOf('198.51.100.9'), NOW + 120_000);
+    expect((await request('/cv')).status).toBe(302);
+    expect((await request('/cv', '198.51.100.9')).status).toBe(429);
+  });
+
+  it('writes the row once per isolate while the block lasts, and again after it', async () => {
+    const { request, db } = setup({ limiter: lenientLimiter() });
+    await junkMisses(request, MISS_LIMIT + 1);
+    expect(db.upserts).toHaveLength(1);
+
+    // The local block ends after a minute and junk paths trip it again, but
+    // the global block still runs, so nothing new is written.
+    vi.setSystemTime(NOW + MISS_WINDOW_SECONDS * 1000);
+    expect((await junkMisses(request, MISS_LIMIT + 1)).at(-1)).toBe(429);
+    expect(db.upserts).toHaveLength(1);
+
+    vi.setSystemTime(NOW + GLOBAL_BLOCK_SECONDS * 1000);
+    expect((await junkMisses(request, MISS_LIMIT + 1)).at(-1)).toBe(429);
+    expect(db.upserts).toHaveLength(2);
+    expect(db.upserts[1]?.[1]).toBe(NOW + 2 * GLOBAL_BLOCK_SECONDS * 1000);
+  });
+
+  it('writes no address, only the HMAC key', async () => {
+    const { request, db } = setup();
+    await spendMisses(request, '198.51.100.23');
+    await request('/one-more', '198.51.100.23');
+    expect(db.upserts).toHaveLength(1);
+    expect(JSON.stringify(db.upserts)).not.toContain('198.51');
+    expect(db.upserts[0]?.[0]).toMatch(/^miss:[A-Za-z0-9_-]{43}$/);
   });
 });
 
@@ -241,12 +420,6 @@ describe('privacy', () => {
 });
 
 describe('fail open', () => {
-  it('serves normally when the binding throws', async () => {
-    const { request } = setup({ limiter: fakeLimiter(MISS_LIMIT, true) });
-    for (let i = 0; i < MISS_LIMIT * 2; i += 1) expect((await request(`/nope-${i}`)).status).toBe(404);
-    expect((await request('/cv')).status).toBe(302);
-  });
-
   it('serves normally when the cache throws, and still blocks from memory', async () => {
     const { request } = setup({ cacheFails: true });
     expect((await request('/cv')).status).toBe(302);
@@ -255,11 +428,31 @@ describe('fail open', () => {
     expect((await request('/cv')).status).toBe(429);
   });
 
-  it('turns the guard off without RATE_LIMIT_SECRET', async () => {
-    const { request, limiter } = setup({ secret: undefined });
+  it('still answers 429 when the global write fails, and logs it once', async () => {
+    const { request } = setup({ writeFails: true, limiter: lenientLimiter() });
+    await spendMisses(request);
+    expect((await request('/one-more')).status).toBe(429);
+    vi.setSystemTime(NOW + GLOBAL_BLOCK_SECONDS * 1000);
+    expect((await junkMisses(request, MISS_LIMIT + 1)).at(-1)).toBe(429);
+    expect(guardLogs().filter((message) => message.includes('global block write failed'))).toHaveLength(1);
+  });
+
+  it('falls back to the lookup without guard_blocks when the table is missing', async () => {
+    const { request } = setup({ noTable: true });
+    expect((await request('/cv')).status).toBe(302);
+    expect((await request('/old')).status).toBe(410);
+    expect((await request('/x7kq2m')).status).toBe(200);
+    expect((await request('/does-not-exist')).status).toBe(404);
+    expect(guardLogs()).toEqual(['slug guard: guard_blocks is missing, run the migrations, failing open']);
+  });
+
+  it('turns the guard off without RATE_LIMIT_SECRET, and binds no key', async () => {
+    const { request, limiter, db } = setup({ secret: undefined });
     for (let i = 0; i < MISS_LIMIT * 2; i += 1) expect((await request(`/nope-${i}`)).status).toBe(404);
     expect(limiter.calls()).toBe(0);
     expect((await request('/cv')).status).toBe(302);
+    expect(db.lookupArgs.every((args) => args[2] === null)).toBe(true);
+    expect(db.upserts).toHaveLength(0);
   });
 });
 

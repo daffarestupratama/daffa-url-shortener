@@ -334,6 +334,9 @@ export const PURGE_RATE_LIMITS = 'DELETE FROM rate_limits WHERE window_start < ?
 /** ?1 cutoff. Daily budget rows older than seven days. */
 export const PURGE_BUDGET = 'DELETE FROM public_click_budget WHERE day < ?1';
 
+/** ?1 cutoff. Global blocks of the slug guessing guard that already ended. */
+export const PURGE_GUARD_BLOCKS = 'DELETE FROM guard_blocks WHERE blocked_until < ?1';
+
 // Analytics --------------------------------------------------------------
 // Every statement takes ?1 id, ?2 window start, ?3 window end. The end bound
 // pins the snapshot, so a click logged while the batch runs cannot land in a
@@ -614,5 +617,6 @@ export const EXPLAIN_CASES: ExplainCase[] = [
   { name: 'blocked domains: remove', sql: BLOCKED_DELETE, params: ['example.com'], readsClicks: false, noScan: true },
   { name: 'cron: purge rate limits', sql: PURGE_RATE_LIMITS, params: [SAMPLE_HOUR - 86_400_000], readsClicks: false, noScan: true },
   { name: 'cron: purge daily budget', sql: PURGE_BUDGET, params: [SAMPLE_DAY - 7 * 86_400_000], readsClicks: false, noScan: true },
+  { name: 'cron: purge ended guard blocks', sql: PURGE_GUARD_BLOCKS, params: [SAMPLE_NOW], readsClicks: false, noScan: true },
   ...clientCases,
 ];

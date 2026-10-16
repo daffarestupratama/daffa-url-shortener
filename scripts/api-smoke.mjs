@@ -6,7 +6,8 @@
  * migrated, seeded local database. Exercises every owner endpoint under
  * /api/admin, the public endpoint under /api/public, every CSRF case, the
  * path from the redirector to the dashboard through the shared D1 state,
- * every public link page at the redirector, and the daily cron. It also walks
+ * every public link page at the redirector, the slug guessing guard with its
+ * global block rows, and the daily cron. It also walks
  * both dashboard tabs page by page the way the client does, and checks that
  * every client address serves the single page document. Counters and
  * fixtures are read and set in the local database through wrangler, never the
@@ -22,7 +23,9 @@
  */
 
 import { randomInt } from 'node:crypto';
-import { importTs } from './bundle.mjs';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { importTs, ROOT } from './bundle.mjs';
 import { d1Local } from './d1.mjs';
 
 const DASHBOARD = process.env.SMOKE_DASHBOARD ?? 'http://localhost:5173';
@@ -235,7 +238,8 @@ async function main() {
   await d1Local(
     `DELETE FROM links WHERE slug LIKE '${PREFIX}%' OR (is_public = 1 AND url LIKE '%${PREFIX}%');` +
       `DELETE FROM blocked_domains WHERE host LIKE '%${PREFIX}%';` +
-      `DELETE FROM rate_limits WHERE bucket LIKE '${PREFIX}%';`,
+      `DELETE FROM rate_limits WHERE bucket LIKE '${PREFIX}%';` +
+      `DELETE FROM guard_blocks WHERE key LIKE '${PREFIX}%';`,
   );
   check('leftover smoke links cleared', leftovers.status === 200);
 
@@ -736,14 +740,50 @@ async function countersAfter(slug, ready) {
   return row;
 }
 
+/** RATE_LIMIT_SECRET of the local redirector, read from apps/redirector/.dev.vars, or null. */
+function redirectorSecret() {
+  try {
+    const vars = readFileSync(path.join(ROOT, 'apps/redirector/.dev.vars'), 'utf8');
+    const value = /^RATE_LIMIT_SECRET=(.*)$/m.exec(vars)?.[1]?.trim().replace(/^(["'])(.*)\1$/, '$2');
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
+/** One guard_blocks row by key, or undefined. */
+async function guardBlock(key) {
+  const [row] = await rows(`SELECT key, blocked_until FROM guard_blocks WHERE key = '${key}';`);
+  return row;
+}
+
 /**
  * The slug guessing guard: 10 misses (404s) per address per 60 seconds, then
- * 60 seconds of 429 for every request from that address. Each part uses fresh
- * TEST-NET-2 or documentation IPv6 addresses drawn for this run, so a run that
- * repeats within a minute is not caught by the block of the one before.
+ * 429 for every request from that address, and a guard_blocks row that blocks
+ * valid slugs for 5 minutes at every location. Each part uses fresh TEST-NET-2
+ * or documentation IPv6 addresses drawn for this run, so a run that repeats
+ * within a few minutes is not caught by the blocks of the one before.
+ *
+ * The guard keys are computed here with the secret of apps/redirector/.dev.vars,
+ * the same way guard.ts derives them, so the rows can be checked, planted, and
+ * removed. Locally one isolate serves every request, so the spread over Cloudflare
+ * locations that the global row exists for is not reproduced, only its effect.
  */
 async function slugGuard() {
   section('Slug guessing guard at the redirector');
+  const secret = redirectorSecret();
+  if (!check('apps/redirector/.dev.vars holds RATE_LIMIT_SECRET', secret !== null)) {
+    console.log('  The guard is off without RATE_LIMIT_SECRET. Copy apps/redirector/.dev.vars.example to');
+    console.log('  apps/redirector/.dev.vars and restart npm run dev.');
+    return;
+  }
+  const ipTools = await importTs('shared/ip.ts');
+  const keys = [];
+  const keyOf = async (ip) => {
+    const key = `miss:${await ipTools.hmacTag(secret, ipTools.rateLimitSubject(ip))}`;
+    keys.push(key);
+    return key;
+  };
   // A random documentation /64 per part: 2^32 of them, so two runs never meet.
   const hex = () => randomInt(1, 0x10000).toString(16);
   const freshIp = () => `2001:db8:${hex()}:${hex()}::1`;
@@ -751,74 +791,131 @@ async function slugGuard() {
   const misses = (count, ip, label = 'miss') =>
     Promise.all(Array.from({ length: count }, (_, i) => status(i % 2 ? `/${RUN}-${label}-${i}` : `/${label}-${i}.php`, ip)));
 
-  // The guesser is IPv4, so that path is covered too. Only it can repeat
-  // between runs, with a chance of 1 in 254.
-  const guesser = `198.51.100.${randomInt(1, 255)}`;
-  const first = await misses(10, guesser);
-  check('ten misses from one address all answer 404', first.every((code) => code === 404), first.join());
-  const over = await redirectFetch(`/${RUN}-one-more`, { ip: guesser });
-  const overBody = await over.text();
-  const retry = Number(over.headers.get('retry-after'));
-  if (
-    !check(
-      'the eleventh answers 429 with the attempt limit page, Retry-After, and no-store',
+  try {
+    // The guesser is IPv4, so that path is covered too. Only it can repeat
+    // between runs, with a chance of 1 in 254 for runs within five minutes,
+    // which the isolate may still remember. Its old row is removed first.
+    const guesser = `198.51.100.${randomInt(1, 255)}`;
+    const guesserKey = await keyOf(guesser);
+    await d1Local(`DELETE FROM guard_blocks WHERE key = '${guesserKey}';`);
+    const first = await misses(10, guesser);
+    check('ten misses from one address all answer 404', first.every((code) => code === 404), first.join());
+    const tripped = Date.now();
+    const over = await redirectFetch(`/${RUN}-one-more`, { ip: guesser });
+    const overBody = await over.text();
+    const retry = Number(over.headers.get('retry-after'));
+    check(
+      'the eleventh answers 429 with the attempt limit page, Retry-After of 5 minutes, and no-store',
       over.status === 429 &&
-        retry >= 1 &&
-        retry <= 60 &&
+        retry >= 295 &&
+        retry <= 300 &&
         over.headers.get('cache-control') === 'no-store, private' &&
         overBody.includes('Too many unknown links'),
       `status ${over.status}, Retry-After ${retry}`,
-    )
-  ) {
-    console.log('  The guard is off without RATE_LIMIT_SECRET. Copy apps/redirector/.dev.vars.example to');
-    console.log('  apps/redirector/.dev.vars and restart npm run dev.');
+    );
+    await sleep(300);
+    const row = await guardBlock(guesserKey);
+    const expectedEnd = tripped + 300_000;
+    check(
+      'the trip writes one guard_blocks row ending 5 minutes later',
+      row !== undefined && Math.abs(row.blocked_until - expectedEnd) <= 5000,
+      row ? `ends ${row.blocked_until - tripped} ms after the trip` : 'no row',
+    );
+
+    const before = await counters('cv');
+    const publicBefore = await counters('x7kq2m');
+    check('a valid private slug from that address answers 429 as well', (await status('/cv', guesser)) === 429);
+    check('so does a HEAD on it', (await status('/cv', guesser, 'HEAD')) === 429);
+    check('and a public link', (await status('/x7kq2m', guesser)) === 429);
+    await sleep(500);
+    const after = await counters('cv');
+    const publicAfter = await counters('x7kq2m');
+    check(
+      'a blocked request logs no click and moves no public counter',
+      after?.logged === before?.logged && publicAfter?.click_total === publicBefore?.click_total,
+      `${before?.logged} then ${after?.logged}, ${publicBefore?.click_total} then ${publicAfter?.click_total}`,
+    );
+    check(
+      'the apex, robots.txt and favicon.ico stay open for that address',
+      (await status('/', guesser)) === 301 && (await status('/robots.txt', guesser)) === 200 && (await status('/favicon.ico', guesser)) === 204,
+    );
+    check('another address is not affected', (await status('/cv', freshIp(), 'HEAD')) === 302);
+
+    // Eleven misses at once, the burst the Rate Limiting binding let through
+    // in production. The local counter of the isolate catches it.
+    const burster = freshIp();
+    const burstKey = await keyOf(burster);
+    const burst = await misses(11, burster, 'burst');
+    check(
+      'a burst of eleven parallel misses answers ten 404s and one 429',
+      burst.filter((code) => code === 404).length === 10 && burst.filter((code) => code === 429).length === 1,
+      burst.join(),
+    );
+    check('after the burst a valid slug from that address answers 429', (await status('/cv', burster, 'HEAD')) === 429);
+    await sleep(300);
+    check('the burst wrote its guard_blocks row', (await guardBlock(burstKey)) !== undefined);
+
+    // A row planted for a fresh address, as another location would write it.
+    // This isolate holds no marker for it, so only the lookup can see the block.
+    const remote = freshIp();
+    const remoteKey = await keyOf(remote);
+    const remoteEnd = Date.now() + 120_000;
+    await d1Local(`INSERT INTO guard_blocks (key, blocked_until) VALUES ('${remoteKey}', ${remoteEnd});`);
+    check('with only a global row, a junk path still answers 404, since it never reads D1', (await status('/wp-login.php', remote)) === 404);
+    const cvBefore = await counters('cv');
+    const remoteBlocked = await redirectFetch('/cv', { ip: remote });
+    const remoteRetry = Number(remoteBlocked.headers.get('retry-after'));
+    const remoteLeft = Math.ceil((remoteEnd - Date.now()) / 1000);
+    check(
+      'a global row alone makes a valid slug answer 429, with Retry-After until the row ends',
+      remoteBlocked.status === 429 && Math.abs(remoteRetry - remoteLeft) <= 2,
+      `status ${remoteBlocked.status}, Retry-After ${remoteRetry}, ${remoteLeft} seconds left`,
+    );
+    check('an unknown slug from that address answers 429 too', (await status(`/${RUN}-remote`, remote)) === 429);
+    await sleep(500);
+    check('the request blocked by the global row logs no click', (await counters('cv'))?.logged === cvBefore?.logged);
+    check('the isolate now remembers the block, so the junk path answers 429', (await status('/wp-login.php', remote)) === 429);
+
+    const ended = freshIp();
+    const endedKey = await keyOf(ended);
+    await d1Local(`INSERT INTO guard_blocks (key, blocked_until) VALUES ('${endedKey}', ${Date.now() - 1000});`);
+    check('a row whose block has ended blocks nothing', (await status('/cv', ended, 'HEAD')) === 302);
+
+    const visitor = freshIp();
+    const visitorKey = await keyOf(visitor);
+    const hits = await Promise.all(Array.from({ length: 25 }, () => status('/cv', visitor, 'HEAD')));
+    check('25 hits from one address all redirect', hits.every((code) => code === 302), hits.join());
+    check('hits never count, so a miss after them is still a 404', (await status(`/${RUN}-after-hits`, visitor)) === 404);
+    await sleep(300);
+    check('hits alone never write a guard_blocks row', (await guardBlock(visitorKey)) === undefined);
+
+    const expired = freshIp();
+    const gone = await Promise.all(Array.from({ length: 15 }, () => status('/slide-pydata', expired)));
+    check('15 requests to an inactive link all answer 410', gone.every((code) => code === 410), gone.join());
+    check('a 410 never counts as a miss', (await status(`/${RUN}-after-gone`, expired)) === 404);
+
+    const safari = freshIp();
+    const icons = await Promise.all(
+      Array.from({ length: 15 }, (_, i) => status(i % 2 ? '/apple-touch-icon.png' : '/apple-touch-icon-precomposed.png', safari)),
+    );
+    check('15 touch icon requests answer 404', icons.every((code) => code === 404), icons.join());
+    check('automatic browser paths never count as misses', (await status(`/${RUN}-after-icons`, safari)) === 404);
+
+    const block = `2001:db8:${hex()}:${hex()}`;
+    await keyOf(`${block}::a`);
+    const six = await misses(6, `${block}::a`, 'v6a');
+    const five = await misses(4, `${block}:ffff::b`, 'v6b');
+    check('misses from two addresses in one IPv6 /64 add up', [...six, ...five].every((code) => code === 404));
+    check(
+      'the eleventh miss of the /64 answers 429, from yet another address in it',
+      (await status(`/${RUN}-v6-over`, `${block}:1:2:3:4`)) === 429,
+    );
+    check('a neighbouring /64 is not affected', (await status('/cv', `2001:db8:ffff:ffff::1`, 'HEAD')) === 302);
+  } finally {
+    // Writes of the trips run in waitUntil, so give the last one a moment.
+    await sleep(300);
+    await d1Local(`DELETE FROM guard_blocks WHERE key IN (${keys.map((key) => `'${key}'`).join(', ')});`);
   }
-
-  const before = await counters('cv');
-  const publicBefore = await counters('x7kq2m');
-  check('a valid private slug from that address answers 429 as well', (await status('/cv', guesser)) === 429);
-  check('so does a HEAD on it', (await status('/cv', guesser, 'HEAD')) === 429);
-  check('and a public link', (await status('/x7kq2m', guesser)) === 429);
-  await sleep(500);
-  const after = await counters('cv');
-  const publicAfter = await counters('x7kq2m');
-  check(
-    'a blocked request logs no click and moves no public counter',
-    after?.logged === before?.logged && publicAfter?.click_total === publicBefore?.click_total,
-    `${before?.logged} then ${after?.logged}, ${publicBefore?.click_total} then ${publicAfter?.click_total}`,
-  );
-  check(
-    'the apex, robots.txt and favicon.ico stay open for that address',
-    (await status('/', guesser)) === 301 && (await status('/robots.txt', guesser)) === 200 && (await status('/favicon.ico', guesser)) === 204,
-  );
-  check('another address is not affected', (await status('/cv', freshIp(), 'HEAD')) === 302);
-
-  const visitor = freshIp();
-  const hits = await Promise.all(Array.from({ length: 25 }, () => status('/cv', visitor, 'HEAD')));
-  check('25 hits from one address all redirect', hits.every((code) => code === 302), hits.join());
-  check('hits never count, so a miss after them is still a 404', (await status(`/${RUN}-after-hits`, visitor)) === 404);
-
-  const expired = freshIp();
-  const gone = await Promise.all(Array.from({ length: 15 }, () => status('/slide-pydata', expired)));
-  check('15 requests to an inactive link all answer 410', gone.every((code) => code === 410), gone.join());
-  check('a 410 never counts as a miss', (await status(`/${RUN}-after-gone`, expired)) === 404);
-
-  const safari = freshIp();
-  const icons = await Promise.all(
-    Array.from({ length: 15 }, (_, i) => status(i % 2 ? '/apple-touch-icon.png' : '/apple-touch-icon-precomposed.png', safari)),
-  );
-  check('15 touch icon requests answer 404', icons.every((code) => code === 404), icons.join());
-  check('automatic browser paths never count as misses', (await status(`/${RUN}-after-icons`, safari)) === 404);
-
-  const block = `2001:db8:${hex()}:${hex()}`;
-  const six = await misses(6, `${block}::a`, 'v6a');
-  const five = await misses(4, `${block}:ffff::b`, 'v6b');
-  check('misses from two addresses in one IPv6 /64 add up', [...six, ...five].every((code) => code === 404));
-  check(
-    'the eleventh miss of the /64 answers 429, from yet another address in it',
-    (await status(`/${RUN}-v6-over`, `${block}:1:2:3:4`)) === 429,
-  );
-  check('a neighbouring /64 is not affected', (await status('/cv', `2001:db8:ffff:ffff::1`, 'HEAD')) === 302);
 }
 
 async function visit(slug, method = 'GET') {
@@ -1338,7 +1435,8 @@ async function cron() {
   const [recentBefore] = await rows(`SELECT clicks FROM public_click_budget WHERE day = ${recentDay};`);
   await d1Local(
     `INSERT OR IGNORE INTO rate_limits (window_start, bucket, count) VALUES (${hour - 3 * DAY}, '${PREFIX}stale', 1), (${hour - 2 * HOUR}, '${PREFIX}fresh', 1);` +
-      `INSERT OR IGNORE INTO public_click_budget (day, clicks) VALUES (${staleDay}, 5), (${recentDay}, 7);`,
+      `INSERT OR IGNORE INTO public_click_budget (day, clicks) VALUES (${staleDay}, 5), (${recentDay}, 7);` +
+      `INSERT OR REPLACE INTO guard_blocks (key, blocked_until) VALUES ('${PREFIX}ended', ${Date.now() - 1000}), ('${PREFIX}running', ${Date.now() + 300_000});`,
   );
   try {
     const response = await fetch(`${DASHBOARD}/cdn-cgi/local/scheduled?cron=15+0+*+*+*`);
@@ -1347,9 +1445,12 @@ async function cron() {
     check('rate limit windows older than one day are purged, newer ones kept', limits.join() === `${PREFIX}fresh`, limits.join());
     const budget = (await rows(`SELECT day FROM public_click_budget WHERE day IN (${staleDay}, ${recentDay}) ORDER BY day;`)).map((row) => row.day);
     check('budget rows older than seven days are purged, newer ones kept', budget.join() === String(recentDay), budget.join());
+    const blocks = (await rows(`SELECT key FROM guard_blocks WHERE key LIKE '${PREFIX}%';`)).map((row) => row.key);
+    check('guard blocks that ended are purged, running ones kept', blocks.join() === `${PREFIX}running`, blocks.join());
   } finally {
     await d1Local(
       `DELETE FROM rate_limits WHERE bucket LIKE '${PREFIX}%';` +
+        `DELETE FROM guard_blocks WHERE key LIKE '${PREFIX}%';` +
         (recentBefore ? '' : `DELETE FROM public_click_budget WHERE day = ${recentDay};`),
     );
   }
